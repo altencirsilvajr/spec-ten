@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+.codex-build*/
+.config/
+.playwright-cli/
+output/
+tests/

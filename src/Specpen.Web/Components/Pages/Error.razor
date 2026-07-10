@@ -1,0 +1,38 @@
+@page "/Error"
+@using System.Diagnostics
+@using Microsoft.AspNetCore.Diagnostics
+
+<PageTitle>@ErrorTitle</PageTitle>
+
+<section class="empty-state">
+    <h1>@ErrorTitle</h1>
+    <p>@ErrorMessage</p>
+
+    @if (ShowRequestId)
+    {
+        <p class="muted">Request ID: <code>@RequestId</code></p>
+    }
+
+    <a class="button primary" href="/celulares">@PrimaryActionLabel</a>
+</section>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private int StatusCode { get; set; }
+    private bool IsNotFound => StatusCode == StatusCodes.Status404NotFound;
+    private string ErrorTitle => IsNotFound ? "Pagina nao encontrada" : "Algo saiu errado";
+    private string ErrorMessage => IsNotFound
+        ? "Esse caminho nao existe no catalogo."
+        : "Nao foi possivel concluir a requisicao agora.";
+    private string PrimaryActionLabel => IsNotFound ? "Ver celulares" : "Voltar ao catalogo";
+    private bool ShowRequestId => !IsNotFound && !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized()
+    {
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+        StatusCode = HttpContext?.Response.StatusCode ?? HttpContext?.Features.Get<IStatusCodeReExecuteFeature>()?.OriginalStatusCode ?? 0;
+    }
+}

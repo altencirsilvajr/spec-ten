@@ -1,0 +1,47 @@
+@implements IDisposable
+@inject CompareSelectionState CompareSelection
+
+<a class="compare-nav-link"
+   href="@CompareSelection.BuildCompareUrl()"
+   aria-label="@CompareNavLabel"
+   title="@CompareNavLabel">
+    <span>Comparar</span>
+    @if (CompareSelection.Count > 0)
+    {
+        <span class="nav-count">@CompareSelection.Count</span>
+    }
+</a>
+
+@code {
+    protected override void OnInitialized()
+    {
+        CompareSelection.Changed += OnCompareSelectionChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        if (await CompareSelection.EnsureHydratedAsync())
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string CompareNavLabel => CompareSelection.Count == 0
+        ? "Comparar celulares"
+        : $"Comparar celulares ({CompareSelection.Count} selecionados)";
+
+    private void OnCompareSelectionChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CompareSelection.Changed -= OnCompareSelectionChanged;
+    }
+}

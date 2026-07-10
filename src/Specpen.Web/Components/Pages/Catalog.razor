@@ -1,0 +1,1694 @@
+@page "/celulares"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject CatalogService CatalogService
+@inject CompareSelectionState CompareSelection
+@inject NavigationManager Navigation
+
+<PageTitle>Catalogo de celulares</PageTitle>
+<HeadContent>
+    <meta name="description" content="Busca instantanea de celulares com categorias claras, comparacao guiada e fonte por especificacao." />
+    <link rel="canonical" href="/celulares" />
+</HeadContent>
+
+<section class="catalog-hero tool-hero @(IsCatalogHeroCompact ? "compact" : null)">
+    <div>
+        <p class="eyebrow">Catalogo publico</p>
+        <h1 class="page-title">Encontre o modelo certo sem sofrer na responsividade.</h1>
+        <p class="page-lede">Busca por nome, marca ou chipset, cobertura ampliada para modelos recentes e ficha tecnica organizada para celular e desktop.</p>
+    </div>
+</section>
+
+<section class="catalog-toolbar">
+    <div class="toolbar-search-panel">
+        <div class="toolbar-search">
+            <label for="catalog-search">Buscar aparelho</label>
+            <div class="search-input-shell">
+                <input id="catalog-search"
+                       value="@SearchText"
+                       @oninput="OnSearchChanged"
+                       @onfocus="OnSearchFocused"
+                       @onblur="OnSearchBlur"
+                       @onkeydown="OnSearchKeyDown"
+                       autocomplete="off"
+                       autocapitalize="off"
+                       autocorrect="off"
+                       spellcheck="false"
+                       inputmode="search"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-expanded="@(HasSuggestions ? "true" : "false")"
+                       aria-controls="catalog-suggestions"
+                       aria-activedescendant="@ActiveSuggestionId"
+                       placeholder="Xiaomi 15T Pro, Galaxy A56, A18 Pro..." />
+                <button class="button primary" type="button" @onclick="ApplyFiltersAndFocusResultsAsync">Ir para resultados</button>
+            </div>
+
+            <div class="search-assist-strip @SearchAssistTone" aria-live="polite">
+                <strong>@SearchAssistTitle</strong>
+                <span>@SearchAssistMessage</span>
+            </div>
+
+            @if (HasSuggestions)
+            {
+                <div id="catalog-suggestions" class="suggestion-panel" role="listbox" aria-label="Sugestoes de busca">
+                    @for (var index = 0; index < Suggestions.Count; index++)
+                    {
+                        var suggestion = Suggestions[index];
+                        var isActive = ActiveSuggestionIndex == index;
+                        <button class="suggestion-item @(isActive ? "active" : null)"
+                                id="@SuggestionId(index)"
+                                role="option"
+                                aria-selected="@isActive"
+                                type="button"
+                                @onclick="() => OpenSuggestion(suggestion)">
+                            <span class="suggestion-title">@suggestion.FullName</span>
+                            <span class="suggestion-meta">@SuggestionMeta(suggestion)</span>
+                        </button>
+                    }
+                    <button class="suggestion-item more @(ActiveSuggestionIndex == Suggestions.Count ? "active" : null)"
+                            id="@SuggestionId(Suggestions.Count)"
+                            role="option"
+                            aria-selected="@(ActiveSuggestionIndex == Suggestions.Count)"
+                            type="button"
+                            @onclick="ApplyFiltersAndFocusResultsAsync">
+                        <span class="suggestion-title">Ir para os cards filtrados</span>
+                        <span class="suggestion-meta">Fechar sugestoes e continuar no catalogo</span>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <button class="button subtle compact mobile-filter-toggle"
+            type="button"
+            aria-expanded="@IsMobileFiltersOpen"
+            @onclick="ToggleMobileFilters">
+        @(IsMobileFiltersOpen ? "Fechar filtros" : "Refinar filtros")
+    </button>
+
+    <div class="toolbar-filter-panel @(IsMobileFiltersOpen ? "mobile-open" : "mobile-collapsed")">
+        <div class="toolbar-filters">
+            <label for="catalog-brand">
+                <span class="filter-label">Marca</span>
+                <select id="catalog-brand" value="@SelectedBrandSlug" @onchange="OnBrandChanged">
+                    <option value="">Todas as marcas</option>
+                    @foreach (var brand in BrandOptions)
+                    {
+                        <option value="@brand.Slug">@brand.Name (@brand.Count)</option>
+                    }
+                </select>
+            </label>
+
+            <label for="catalog-sort">
+                <span class="filter-label">Ordenar por</span>
+                <select id="catalog-sort" value="@SelectedSortKey" @onchange="OnSortChanged">
+                    @foreach (var option in SortOptions)
+                    {
+                        <option value="@option.Key">@option.Label</option>
+                    }
+                </select>
+            </label>
+
+            <div>
+                <span class="filter-label">Faixa</span>
+                <div class="segmented-control" role="tablist" aria-label="Faixa de aparelho">
+                    @foreach (var option in TierOptions)
+                    {
+                        <button type="button"
+                                role="tab"
+                                aria-selected="@(SelectedTierKey == option.Key)"
+                                class="segment @(SelectedTierKey == option.Key ? "active" : null)"
+                                @onclick="() => SetTierAsync(option.Key)">
+                            @option.Label
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (Sections.Count > 1)
+{
+    <nav class="section-jumpbar catalog-jumpbar" aria-label="Ir para categoria do catalogo">
+        <strong class="jumpbar-label">Ir para categoria</strong>
+        <div class="jumpbar-list">
+            @foreach (var catalogGroup in Sections)
+            {
+                <a class="jump-chip" href="@($"#{SectionAnchor(catalogGroup.Title)}")">
+                    <span>@catalogGroup.Title</span>
+                    <span>@catalogGroup.Count</span>
+                </a>
+            }
+        </div>
+    </nav>
+}
+
+<section id="catalog-results" class="catalog-summary-line" aria-live="polite">
+    <div>
+        <strong>@ResultHeading</strong>
+        <span>@ResultDescription</span>
+    </div>
+    <button class="button subtle compact" type="button" @onclick="ClearFiltersAsync">Limpar filtros</button>
+</section>
+
+@if (ActiveFilters.Count > 0)
+{
+    <section class="active-filter-bar" aria-label="Filtros ativos">
+        <strong>Filtros ativos</strong>
+        <div class="active-filter-list">
+            @foreach (var filter in ActiveFilters)
+            {
+                <button class="active-filter-chip" type="button" @onclick="() => RemoveFilterAsync(filter.Key)">
+                    <span>@filter.Label</span>
+                    <span aria-hidden="true">x</span>
+                </button>
+            }
+        </div>
+    </section>
+}
+
+@if (CompareSelection.Count > 0)
+{
+    <section class="compare-dock" aria-label="Comparacao pronta">
+        <div class="compare-dock-copy">
+            <strong>@CompareSelection.Count aparelho(s) selecionado(s)</strong>
+            <p>@CompareHint</p>
+            <div class="selected-chip-list">
+                @foreach (var selected in CompareSelection.Items)
+                {
+                    <button class="selected-chip" type="button" @onclick="() => RemoveSelected(selected.Id)">
+                        <span>@selected.FullName</span>
+                        <span aria-hidden="true">x</span>
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="compare-dock-actions">
+            <button class="button subtle" type="button" @onclick="ClearSelection">Limpar selecao</button>
+            <button class="button primary" type="button" disabled="@(!CanCompare)" @onclick="CompareSelected">
+                Comparar agora
+            </button>
+        </div>
+    </section>
+}
+
+@if (FeaturedMatch is not null)
+{
+    var featuredMatch = FeaturedMatch;
+    var isSelected = CompareSelection.Contains(featuredMatch.Id);
+    var selectionLimitReached = CompareSelection.Count >= 4 && !isSelected;
+
+    <section class="featured-match-panel" aria-label="Melhor correspondencia">
+        <a class="featured-match-media media-frame" href="/celulares/@featuredMatch.BrandSlug/@featuredMatch.Slug" aria-label="@featuredMatch.FullName">
+            <PhoneMediaContent ImageUrl="@featuredMatch.ImageUrl"
+                               Alt="@featuredMatch.FullName"
+                               Brand="@featuredMatch.DisplayBrand"
+                               Model="@featuredMatch.ModelName"
+                               Loading="eager" />
+        </a>
+
+        <div class="featured-match-copy">
+            <div class="featured-match-heading">
+                <div>
+                    <p class="eyebrow">Melhor correspondencia</p>
+                    <h2>@featuredMatch.FullName</h2>
+                    <p class="muted">@FeaturedMatchDescription(featuredMatch)</p>
+                </div>
+                <span class="tier">@featuredMatch.PrimaryBadgeLabel</span>
+            </div>
+
+            @if (featuredMatch.HasFullCatalogEntry)
+            {
+                <dl class="spec-pills catalog-spec-pills">
+                    <div>
+                        <dt>Chipset</dt>
+                        <dd>@CompactChipset(featuredMatch.Chipset)</dd>
+                    </div>
+                    <div>
+                        <dt>Tela</dt>
+                        <dd>@(featuredMatch.Display ?? "-")</dd>
+                    </div>
+                    <div>
+                        <dt>Camera</dt>
+                        <dd>@(featuredMatch.MainCamera ?? "-")</dd>
+                    </div>
+                    <div>
+                        <dt>Bateria</dt>
+                        <dd>@(featuredMatch.Battery ?? "-")</dd>
+                    </div>
+                </dl>
+
+                @if (!featuredMatch.IsPublicReady)
+                {
+                    <p class="placeholder-note">@featuredMatch.ReadinessNote</p>
+                }
+            }
+            else
+            {
+                <p class="placeholder-note">Esta foi a melhor correspondencia encontrada na cobertura ampla. Ao abrir, o sistema tenta completar a ficha publica com imagem e specs consolidadas.</p>
+            }
+
+            <div class="card-actions">
+                <a class="button primary" href="/celulares/@featuredMatch.BrandSlug/@featuredMatch.Slug">@(featuredMatch.IsPublicReady ? "Ver ficha" : featuredMatch.HasFullCatalogEntry ? "Abrir ficha parcial" : "Completar e abrir ficha")</a>
+                @if (featuredMatch.IsPublicReady)
+                {
+                    <button class="button @(isSelected ? "primary" : "subtle")"
+                            type="button"
+                            aria-pressed="@isSelected"
+                            disabled="@selectionLimitReached"
+                            @onclick="() => ToggleSelected(featuredMatch)">
+                        @(isSelected ? "Selecionado para comparar" : selectionLimitReached ? "Limite de 4" : "Selecionar para comparar")
+                    </button>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@if (Sections.Count == 0)
+{
+    <section class="empty-state">
+        <h2>Nenhum aparelho encontrado</h2>
+        <p class="muted">Tente buscar por marca, linha ou chipset. Exemplos: Xiaomi 15T Pro, Galaxy A56, Dimensity 9400+.</p>
+        <div class="empty-state-actions">
+            @if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                <a class="button subtle" href="@BuildCatalogUrl(null, SelectedTierKey, SelectedBrandSlug, SelectedSortKey, CatalogResultsFragment)">Remover so a busca</a>
+            }
+
+            <button class="button primary" type="button" @onclick="ClearFiltersAsync">Limpar filtros</button>
+        </div>
+
+        @if (EmptyStateSuggestions.Count > 0 || EmptyStatePhones.Count > 0 || FeaturedBrandOptions.Count > 0)
+        {
+            <div class="empty-state-recovery">
+                <strong>Atalhos para destravar a busca</strong>
+                <p class="muted">Abra um modelo parecido ou volte por marcas com cobertura forte para nao cair em um beco sem saida.</p>
+
+                <div class="selected-chip-list">
+                    @foreach (var suggestion in EmptyStateSuggestions)
+                    {
+                        <a class="jump-chip" href="/celulares/@suggestion.BrandSlug/@suggestion.Slug">
+                            <span>@suggestion.FullName</span>
+                            <span>@suggestion.PrimaryBadgeLabel</span>
+                        </a>
+                    }
+
+                    @if (EmptyStateSuggestions.Count == 0)
+                    {
+                        @foreach (var phone in EmptyStatePhones)
+                        {
+                            <a class="jump-chip" href="/celulares/@phone.BrandSlug/@phone.Slug">
+                                <span>@phone.FullName</span>
+                                <span>@phone.Tier</span>
+                            </a>
+                        }
+                    }
+
+                    @foreach (var brand in FeaturedBrandOptions.Take(3))
+                    {
+                        <a class="jump-chip" href="@BuildCatalogUrl(null, SelectedTierKey, brand.Slug, SelectedSortKey, CatalogResultsFragment)">
+                            <span>@brand.Name</span>
+                            <span>@brand.Count</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+}
+else
+{
+    @foreach (var catalogSection in Sections)
+    {
+        <section id="@SectionAnchor(catalogSection.Title)" class="catalog-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">@catalogSection.Count aparelhos</p>
+                    <h2>@catalogSection.Title</h2>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(catalogSection.Description))
+                {
+                    <p class="muted">@catalogSection.Description</p>
+                }
+            </div>
+
+            <div class="section-progress-line" aria-live="polite">
+                <strong>@SectionVisibilitySummary(catalogSection)</strong>
+                @if (IsSectionCollapsed(catalogSection))
+                {
+                    <span class="muted">Esta categoria fica recolhida por padrao para priorizar os modelos com ficha completa.</span>
+                }
+                else if (SectionHasOverflow(catalogSection))
+                {
+                    <span class="muted">Continue abrindo a categoria sem perder o contexto da pagina.</span>
+                }
+            </div>
+
+            @if (IsSectionCollapsed(catalogSection))
+            {
+                <p class="section-collapsed-note">Abrimos essa camada apenas quando voce quiser explorar modelos que ainda estao sem a ficha tecnica consolidada.</p>
+            }
+            else
+            {
+                <div class="phone-grid catalog-grid">
+                    @foreach (var phone in VisibleSectionPhones(catalogSection))
+                    {
+                        var isSelected = CompareSelection.Contains(phone.Id);
+                        var selectionLimitReached = CompareSelection.Count >= 4 && !isSelected;
+
+                        <article class="phone-card catalog-card @(isSelected ? "selected" : null)">
+                            <a class="phone-card-media media-frame" href="/celulares/@phone.BrandSlug/@phone.Slug" aria-label="@phone.FullName">
+                                <PhoneMediaContent ImageUrl="@phone.ImageUrl"
+                                                   Alt="@phone.FullName"
+                                                   Brand="@phone.DisplayBrand"
+                                                   Model="@phone.ModelName" />
+                            </a>
+
+                            <div class="phone-card-body">
+                                <div class="catalog-card-header">
+                                    <div>
+                                        <p class="muted">@phone.DisplayBrand</p>
+                                        <h3><a href="/celulares/@phone.BrandSlug/@phone.Slug">@phone.ModelName</a></h3>
+                                        <p class="catalog-meta">@CardMeta(phone)</p>
+                                    </div>
+                                    <span class="tier">@phone.PrimaryBadgeLabel</span>
+                                </div>
+
+                                @if (phone.HasFullCatalogEntry)
+                                {
+                                    <dl class="spec-pills catalog-spec-pills">
+                                        <div>
+                                            <dt>Chipset</dt>
+                                            <dd>@CompactChipset(phone.Chipset)</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Tela</dt>
+                                            <dd>@(phone.Display ?? "-")</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Camera</dt>
+                                            <dd>@(phone.MainCamera ?? "-")</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Bateria</dt>
+                                            <dd>@(phone.Battery ?? "-")</dd>
+                                        </div>
+                                    </dl>
+
+                                    @if (!phone.IsPublicReady)
+                                    {
+                                        <p class="placeholder-note">@phone.ReadinessNote</p>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="placeholder-note">Encontramos este modelo na busca ampla. Ao abrir, o sistema tenta completar a ficha publica com imagem e specs consolidadas.</p>
+                                }
+
+                                <div class="card-actions">
+                                    <a class="button subtle" href="/celulares/@phone.BrandSlug/@phone.Slug">@(phone.IsPublicReady ? "Ver ficha" : phone.HasFullCatalogEntry ? "Abrir ficha parcial" : "Abrir ficha completa")</a>
+                                    @if (phone.IsPublicReady)
+                                    {
+                                        <button class="button @(isSelected ? "primary" : "subtle")"
+                                                type="button"
+                                                aria-pressed="@isSelected"
+                                                disabled="@selectionLimitReached"
+                                                @onclick="() => ToggleSelected(phone)">
+                                            @(isSelected ? "Selecionado" : selectionLimitReached ? "Limite de 4" : "Selecionar para comparar")
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+
+            @if (SectionHasOverflow(catalogSection) || CanCollapseSection(catalogSection) || CanHideSection(catalogSection))
+            {
+                <div class="section-more-actions">
+                    @if (IsSectionCollapsed(catalogSection))
+                    {
+                        <button class="button subtle"
+                                type="button"
+                                @onclick="() => ShowMoreInSection(catalogSection)">
+                            Mostrar cobertura inicial
+                        </button>
+                    }
+                    else
+                    {
+                        @if (SectionHasOverflow(catalogSection))
+                        {
+                            <button class="button subtle"
+                                    type="button"
+                                    @onclick="() => ShowMoreInSection(catalogSection)">
+                                Mostrar mais @SectionRevealCount(catalogSection) aparelho(s)
+                            </button>
+                        }
+
+                        @if (CanCollapseSection(catalogSection))
+                        {
+                            <button class="button subtle"
+                                    type="button"
+                                    @onclick="() => ShowLessInSection(catalogSection)">
+                                Mostrar menos
+                            </button>
+                        }
+
+                        @if (CanHideSection(catalogSection))
+                        {
+                            <button class="button subtle"
+                                    type="button"
+                                    @onclick="() => HideSection(catalogSection)">
+                                Ocultar cobertura inicial
+                            </button>
+                        }
+                    }
+                </div>
+            }
+        </section>
+    }
+
+    <section class="catalog-metrics catalog-metrics-strip" aria-label="Resumo do catalogo">
+        <div>
+            <strong>@Phones.Count</strong>
+            <span>modelos visiveis</span>
+        </div>
+        <div>
+            <strong>@CompareSelection.Count</strong>
+            <span>na comparacao</span>
+        </div>
+        <div>
+            <strong>@MaxSpecs</strong>
+            <span>specs por aparelho</span>
+        </div>
+    </section>
+
+    @if (!HasCatalogFilters && FeaturedBrandOptions.Count > 0)
+    {
+        <section class="brand-quick-strip" aria-label="Marcas com ficha completa">
+            <strong class="jumpbar-label">Marcas com ficha completa</strong>
+            <div class="jumpbar-list">
+                <button class="jump-chip @(string.IsNullOrWhiteSpace(SelectedBrandSlug) ? "active" : null)"
+                        type="button"
+                        aria-pressed="@string.IsNullOrWhiteSpace(SelectedBrandSlug)"
+                        @onclick="() => SetBrandAsync(string.Empty)">
+                    <span>Todas</span>
+                    <span>@FeaturedBrandOptions.Sum(option => option.Count)</span>
+                </button>
+
+                @foreach (var brand in FeaturedBrandOptions)
+                {
+                    <button class="jump-chip @(SelectedBrandSlug == brand.Slug ? "active" : null)"
+                            type="button"
+                            aria-pressed="@(SelectedBrandSlug == brand.Slug)"
+                            @onclick="() => SetBrandAsync(brand.Slug)">
+                        <span>@brand.Name</span>
+                        <span>@brand.Count</span>
+                    </button>
+                }
+            </div>
+        </section>
+    }
+
+    @if (ShowPopularComparisons)
+    {
+        <section class="catalog-section compare-preset-section" aria-label="Comparacoes prontas">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Atalho publico</p>
+                    <h2>Comparacoes prontas</h2>
+                </div>
+                <p class="muted">Entradas diretas para quem quer comparar sem montar a selecao manualmente logo de cara.</p>
+            </div>
+
+            <div class="compare-preset-grid">
+                @foreach (var preset in PopularComparisons)
+                {
+                    <article class="compare-preset-card">
+                        <div class="compare-preset-copy">
+                            <span class="tier">@preset.Label</span>
+                            <h3>@PresetTitle(preset)</h3>
+                            <p class="muted">@preset.Reason</p>
+                        </div>
+
+                        <div class="compare-preset-versus" aria-label="@PresetTitle(preset)">
+                            <div class="compare-preset-side">
+                                <span>@preset.Left.DisplayBrand</span>
+                                <strong>@preset.Left.ModelName</strong>
+                                <small>@PresetPhoneMeta(preset.Left)</small>
+                            </div>
+                            <span class="compare-preset-vs" aria-hidden="true">vs</span>
+                            <div class="compare-preset-side">
+                                <span>@preset.Right.DisplayBrand</span>
+                                <strong>@preset.Right.ModelName</strong>
+                                <small>@PresetPhoneMeta(preset.Right)</small>
+                            </div>
+                        </div>
+
+                        <a class="button primary" href="@PresetCompareUrl(preset)">Abrir comparacao</a>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "busca")]
+    public string? Busca { get; set; }
+
+    [SupplyParameterFromQuery(Name = "classe")]
+    public string? Classe { get; set; }
+
+    [SupplyParameterFromQuery(Name = "marca")]
+    public string? Marca { get; set; }
+
+    [SupplyParameterFromQuery(Name = "ordem")]
+    public string? Ordem { get; set; }
+
+    private static readonly IReadOnlyList<FilterOption> TierOptions =
+    [
+        new("", "Todas"),
+        new("top", "Top de linha"),
+        new("intermediario", "Intermediarios"),
+        new("entrada", "Entrada"),
+    ];
+
+    private static readonly IReadOnlyList<FilterOption> SortOptions =
+    [
+        new("auto", "Automatico"),
+        new("newest", "Mais recentes"),
+        new("confidence", "Maior confianca"),
+        new("name", "Nome A-Z"),
+    ];
+    private const int SearchDebounceMilliseconds = 180;
+    private const int SuggestionCloseDelayMilliseconds = 120;
+    private const int BrowseSectionInitialSize = 4;
+    private const int FilteredSectionInitialSize = 8;
+    private const int SectionRevealStep = 8;
+    private const int SearchResultLimit = 240;
+    private const string CatalogResultsFragment = "catalog-results";
+
+    private IReadOnlyList<PhoneSearchResult> Phones { get; set; } = [];
+    private IReadOnlyList<PhoneSuggestionDto> Suggestions { get; set; } = [];
+    private IReadOnlyList<CatalogBrandOptionDto> BrandOptions { get; set; } = [];
+    private IReadOnlyList<CatalogBrandOptionDto> FeaturedBrandOptions { get; set; } = [];
+    private IReadOnlyList<PhoneSearchResult> QuickStartPhones { get; set; } = [];
+    private IReadOnlyList<ComparisonQuickStartDto> PopularComparisons { get; set; } = [];
+    private IReadOnlyList<CatalogSectionViewModel> Sections { get; set; } = [];
+    private Dictionary<string, int> SectionVisibleCounts { get; } = [];
+    private string SearchText { get; set; } = "";
+    private string SelectedTierKey { get; set; } = "";
+    private string SelectedBrandSlug { get; set; } = "";
+    private string SelectedSortKey { get; set; } = "auto";
+    private int ActiveSuggestionIndex { get; set; } = -1;
+    private bool IsSearchRefreshing { get; set; }
+    private CancellationTokenSource? _searchDebounceCts;
+    private CancellationTokenSource? _suggestionCloseCts;
+    private bool IsSuggestionPanelOpen { get; set; }
+    private bool IsMobileFiltersOpen { get; set; }
+
+    private bool HasSuggestions => IsSuggestionPanelOpen && Suggestions.Count > 0 && !string.IsNullOrWhiteSpace(SearchText);
+    private bool CanCompare => CompareSelection.Count is >= 2 and <= 4;
+    private int SuggestionOptionCount => HasSuggestions ? Suggestions.Count + 1 : 0;
+    private string? ActiveSuggestionId => ActiveSuggestionIndex >= 0 ? SuggestionId(ActiveSuggestionIndex) : null;
+    private int MaxSpecs => Phones.Count == 0 ? 0 : Phones.Max(phone => phone.SpecCount);
+    private bool HasCatalogFilters => !string.IsNullOrWhiteSpace(SearchText) ||
+                                      !string.IsNullOrWhiteSpace(SelectedTierKey) ||
+                                      !string.IsNullOrWhiteSpace(SelectedBrandSlug);
+    private bool ResultLimitReached => Phones.Count >= SearchResultLimit;
+    private string ResultHeading => string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SelectedTierKey) && string.IsNullOrWhiteSpace(SelectedBrandSlug)
+        ? "Catalogo dividido por faixa"
+        : $"{Phones.Count} resultado(s)";
+    private string ResultDescription => string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SelectedTierKey) && string.IsNullOrWhiteSpace(SelectedBrandSlug)
+        ? "Top de linha, intermediarios e entrada com o mesmo fluxo de leitura."
+        : ResultLimitReached
+            ? $"Mostrando ate {SearchResultLimit} resultados desta filtragem. Refine por nome, linha ou chipset para cortar ruido sem perder os modelos recentes."
+        : CoverageOnlyCount == 0 && PartialPhoneCount == 0
+            ? $"Busca atualizada em tempo real com marca, faixa e ordenacao em {CurrentSortLabel.ToLowerInvariant()}."
+            : $"Busca atualizada em tempo real com marca, faixa e ordenacao em {CurrentSortLabel.ToLowerInvariant()}. {ReadyPhoneCount} ficha(s) pronta(s), {PartialPhoneCount} parcial(is) e {CoverageOnlyCount} em cobertura inicial.";
+    private string CompareHint => CompareSelection.Count switch
+    {
+        1 => "Escolha mais um aparelho para habilitar a comparacao.",
+        4 => "Limite de quatro modelos atingido. Remova um para trocar.",
+        _ => "A comparacao fica ativa com dois a quatro modelos.",
+    };
+    private string CurrentSortLabel => SortOptions.First(option => option.Key == SelectedSortKey).Label;
+    private IReadOnlyList<ActiveFilterViewModel> ActiveFilters => BuildActiveFilters();
+    private IReadOnlyList<PhoneSuggestionDto> EmptyStateSuggestions => Suggestions.Where(item => item.IsPublicReady).Take(4).ToList();
+    private IReadOnlyList<PhoneSearchResult> EmptyStatePhones => QuickStartPhones.Take(4).ToList();
+    private int ReadyPhoneCount => Phones.Count(phone => phone.IsPublicReady);
+    private int PartialPhoneCount => Phones.Count(phone => phone.IsPartialCatalogEntry);
+    private int CoverageOnlyCount => Phones.Count(phone => !phone.HasFullCatalogEntry);
+    private bool IsCatalogHeroCompact => HasCatalogFilters || CompareSelection.Count > 0;
+    private bool ShowPopularComparisons => CompareSelection.Count == 0 &&
+                                           string.IsNullOrWhiteSpace(SearchText) &&
+                                           string.IsNullOrWhiteSpace(SelectedTierKey) &&
+                                           string.IsNullOrWhiteSpace(SelectedBrandSlug) &&
+                                           PopularComparisons.Count > 0;
+    private int FullSuggestionCount => Suggestions.Count(item => item.IsPublicReady);
+    private int PartialSuggestionCount => Suggestions.Count(item => item.IsPartialCatalogEntry);
+    private int CoverageSuggestionCount => Suggestions.Count(item => !item.HasFullCatalogEntry);
+    private PhoneSearchResult? FeaturedMatch => BuildFeaturedMatch();
+    private SearchAssistViewModel SearchAssist => BuildSearchAssist();
+    private string SearchAssistTitle => SearchAssist.Title;
+    private string SearchAssistMessage => SearchAssist.Message;
+    private string SearchAssistTone => SearchAssist.Tone;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        SearchText = Busca?.Trim() ?? "";
+        SelectedTierKey = NormalizeTierKey(Classe);
+        SelectedBrandSlug = NormalizeBrandSlug(Marca);
+        SelectedSortKey = NormalizeSortKey(Ordem);
+        if (BrandOptions.Count == 0)
+        {
+            BrandOptions = await CatalogService.GetBrandOptionsAsync(CancellationToken.None);
+        }
+
+        if (FeaturedBrandOptions.Count == 0)
+        {
+            FeaturedBrandOptions = await CatalogService.GetFeaturedBrandOptionsAsync(6, CancellationToken.None);
+        }
+
+        if (QuickStartPhones.Count == 0)
+        {
+            QuickStartPhones = await CatalogService.GetQuickStartPhonesAsync(6, CancellationToken.None);
+        }
+
+        if (PopularComparisons.Count == 0)
+        {
+            PopularComparisons = await CatalogService.GetPopularComparisonsAsync(4, CancellationToken.None);
+        }
+
+        await RefreshCatalogAsync(CancellationToken.None);
+        await RefreshSuggestionsAsync(CancellationToken.None);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        if (!await CompareSelection.EnsureHydratedAsync())
+        {
+            return;
+        }
+
+        foreach (var phone in Phones.Where(phone => CompareSelection.Contains(phone.Id)))
+        {
+            CompareSelection.AddOrUpdate(ToCompareSelectionItem(phone), notify: false);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnSearchChanged(ChangeEventArgs args)
+    {
+        SearchText = args.Value?.ToString()?.TrimStart() ?? "";
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            OpenSuggestionPanel();
+        }
+
+        await QueueSearchRefreshAsync();
+    }
+
+    private async Task OnSearchFocused(FocusEventArgs _)
+    {
+        OpenSuggestionPanel();
+        await RefreshSuggestionsAsync(CancellationToken.None);
+    }
+
+    private async Task OnSearchBlur(FocusEventArgs _)
+    {
+        await CloseSuggestionPanelAfterDelayAsync();
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        switch (args.Key)
+        {
+            case "ArrowDown":
+                MoveActiveSuggestion(1);
+                break;
+            case "ArrowUp":
+                MoveActiveSuggestion(-1);
+                break;
+            case "Escape":
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                CloseSuggestionPanel();
+                break;
+            case "Enter":
+                if (HasSuggestions)
+                {
+                    await ActivateActiveSuggestionAsync();
+                }
+                else
+                {
+                    await ApplyFiltersAndFocusResultsAsync();
+                }
+
+                break;
+        }
+    }
+
+    private async Task SetTierAsync(string key)
+    {
+        SelectedTierKey = key;
+        await RefreshCatalogAsync(CancellationToken.None);
+        SyncFilterUrl();
+    }
+
+    private async Task OnBrandChanged(ChangeEventArgs args)
+    {
+        SelectedBrandSlug = NormalizeBrandSlug(args.Value?.ToString());
+        await RefreshCatalogAsync(CancellationToken.None);
+        SyncFilterUrl();
+    }
+
+    private async Task SetBrandAsync(string slug)
+    {
+        SelectedBrandSlug = NormalizeBrandSlug(slug);
+        await RefreshCatalogAsync(CancellationToken.None);
+        SyncFilterUrl();
+    }
+
+    private async Task OnSortChanged(ChangeEventArgs args)
+    {
+        SelectedSortKey = NormalizeSortKey(args.Value?.ToString());
+        await RefreshCatalogAsync(CancellationToken.None);
+        SyncFilterUrl();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        CancelPendingSearchRefresh(clearBusyState: true);
+        SearchText = "";
+        SelectedTierKey = "";
+        SelectedBrandSlug = "";
+        SelectedSortKey = "auto";
+        IsMobileFiltersOpen = false;
+        Suggestions = [];
+        ActiveSuggestionIndex = -1;
+        CloseSuggestionPanel();
+        await RefreshCatalogAsync(CancellationToken.None);
+        Navigation.NavigateTo("/celulares", replace: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case "search":
+                SearchText = "";
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                CloseSuggestionPanel();
+                break;
+            case "tier":
+                SelectedTierKey = "";
+                break;
+            case "brand":
+                SelectedBrandSlug = "";
+                break;
+            case "sort":
+                SelectedSortKey = "auto";
+                break;
+            default:
+                return;
+        }
+
+        await RefreshCatalogAsync(CancellationToken.None);
+        await RefreshSuggestionsAsync(CancellationToken.None);
+        SyncFilterUrl();
+    }
+
+    private void ToggleSelected(PhoneSearchResult phone)
+    {
+        if (CompareSelection.Contains(phone.Id))
+        {
+            CompareSelection.Remove(phone.Id);
+            return;
+        }
+
+        if (CompareSelection.Count >= 4)
+        {
+            return;
+        }
+
+        CompareSelection.AddOrUpdate(ToCompareSelectionItem(phone));
+    }
+
+    private void RemoveSelected(int id)
+    {
+        CompareSelection.Remove(id);
+    }
+
+    private void ClearSelection()
+    {
+        CompareSelection.Clear();
+    }
+
+    private void CompareSelected()
+    {
+        if (!CanCompare)
+        {
+            return;
+        }
+
+        CancelPendingSearchRefresh(clearBusyState: true);
+        CloseSuggestionPanel();
+        Navigation.NavigateTo(CompareSelection.BuildCompareUrl());
+    }
+
+    private void ToggleMobileFilters()
+    {
+        IsMobileFiltersOpen = !IsMobileFiltersOpen;
+    }
+
+    private void OpenSuggestion(PhoneSuggestionDto suggestion)
+    {
+        CancelPendingSearchRefresh(clearBusyState: true);
+        Suggestions = [];
+        ActiveSuggestionIndex = -1;
+        CloseSuggestionPanel();
+        Navigation.NavigateTo($"/celulares/{suggestion.BrandSlug}/{suggestion.Slug}");
+    }
+
+    private void ApplyFilters()
+    {
+        CancelPendingSearchRefresh(clearBusyState: true);
+        Suggestions = [];
+        ActiveSuggestionIndex = -1;
+        CloseSuggestionPanel();
+        SyncFilterUrl();
+    }
+
+    private async Task ApplyFiltersAndFocusResultsAsync()
+    {
+        CancelPendingSearchRefresh(clearBusyState: true);
+        IsMobileFiltersOpen = false;
+        Suggestions = [];
+        ActiveSuggestionIndex = -1;
+        SyncFilterUrl("catalog-results");
+        await Task.CompletedTask;
+    }
+
+    private void SyncFilterUrl(string? fragment = null)
+    {
+        var targetUrl = BuildCatalogUrl(SearchText, SelectedTierKey, SelectedBrandSlug, SelectedSortKey, fragment);
+        if (string.Equals(targetUrl, Navigation.Uri, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(targetUrl, replace: true);
+    }
+
+    private string BuildCatalogUrl(
+        string? searchText,
+        string? tierKey,
+        string? brandSlug,
+        string? sortKey,
+        string? fragment = null)
+    {
+        var parameters = new Dictionary<string, object?>();
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            parameters["busca"] = searchText;
+        }
+
+        if (!string.IsNullOrWhiteSpace(tierKey))
+        {
+            parameters["classe"] = tierKey;
+        }
+
+        if (!string.IsNullOrWhiteSpace(brandSlug))
+        {
+            parameters["marca"] = brandSlug;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sortKey) && !string.Equals(sortKey, "auto", StringComparison.OrdinalIgnoreCase))
+        {
+            parameters["ordem"] = sortKey;
+        }
+
+        var targetUrl = Navigation.GetUriWithQueryParameters("/celulares", parameters);
+        if (!string.IsNullOrWhiteSpace(fragment))
+        {
+            targetUrl = $"{targetUrl}#{fragment}";
+        }
+
+        return targetUrl;
+    }
+
+    private async Task QueueSearchRefreshAsync()
+    {
+        CancelPendingSearchRefresh(clearBusyState: false);
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            Suggestions = [];
+            ActiveSuggestionIndex = -1;
+            await RefreshCatalogAsync(CancellationToken.None);
+            SyncFilterUrl();
+            IsSearchRefreshing = false;
+            return;
+        }
+
+        var debounceCts = new CancellationTokenSource();
+        _searchDebounceCts = debounceCts;
+        IsSearchRefreshing = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
+            await RefreshCatalogAsync(debounceCts.Token);
+            await RefreshSuggestionsAsync(debounceCts.Token);
+            SyncFilterUrl();
+        }
+        catch (OperationCanceledException) when (debounceCts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_searchDebounceCts, debounceCts))
+            {
+                _searchDebounceCts = null;
+                IsSearchRefreshing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+
+            debounceCts.Dispose();
+        }
+    }
+
+    private async Task RefreshCatalogAsync(CancellationToken cancellationToken)
+    {
+        Phones = await CatalogService.SearchAsync(
+            SearchText,
+            ParseTier(SelectedTierKey),
+            SelectedBrandSlug,
+            ParseSort(SelectedSortKey, SearchText),
+            SearchResultLimit,
+            cancellationToken);
+        Sections = BuildSections(Phones);
+        SyncSectionVisibility();
+
+        foreach (var phone in Phones.Where(phone => CompareSelection.Contains(phone.Id)))
+        {
+            CompareSelection.AddOrUpdate(ToCompareSelectionItem(phone), notify: false);
+        }
+    }
+
+    private IReadOnlyList<PhoneSearchResult> VisibleSectionPhones(CatalogSectionViewModel section)
+    {
+        return section.Phones
+            .Take(CurrentVisibleCount(section))
+            .ToList();
+    }
+
+    private bool SectionHasOverflow(CatalogSectionViewModel section)
+    {
+        return CurrentVisibleCount(section) < section.Count;
+    }
+
+    private bool IsSectionCollapsed(CatalogSectionViewModel section)
+    {
+        return section.StartsCollapsed && CurrentVisibleCount(section) == 0;
+    }
+
+    private bool CanCollapseSection(CatalogSectionViewModel section)
+    {
+        return CurrentVisibleCount(section) > SectionMinimumVisibleCount(section);
+    }
+
+    private bool CanHideSection(CatalogSectionViewModel section)
+    {
+        return section.StartsCollapsed && CurrentVisibleCount(section) > 0;
+    }
+
+    private int SectionRevealCount(CatalogSectionViewModel section)
+    {
+        return Math.Min(SectionRevealStep, Math.Max(0, section.Count - CurrentVisibleCount(section)));
+    }
+
+    private string SectionVisibilitySummary(CatalogSectionViewModel section)
+    {
+        if (IsSectionCollapsed(section))
+        {
+            return $"{section.Count} aparelho(s) recolhido(s) em cobertura inicial";
+        }
+
+        var visibleCount = Math.Min(CurrentVisibleCount(section), section.Count);
+        return visibleCount >= section.Count
+            ? $"{section.Count} de {section.Count} aparelho(s) visiveis"
+            : $"{visibleCount} de {section.Count} aparelho(s) visiveis";
+    }
+
+    private void ShowMoreInSection(CatalogSectionViewModel section)
+    {
+        var key = SectionKey(section);
+        var currentCount = CurrentVisibleCount(section);
+        if (section.StartsCollapsed && currentCount == 0)
+        {
+            SectionVisibleCounts[key] = Math.Min(section.Count, SectionInitialSize());
+            return;
+        }
+
+        SectionVisibleCounts[key] = Math.Min(section.Count, currentCount + SectionRevealStep);
+    }
+
+    private void ShowLessInSection(CatalogSectionViewModel section)
+    {
+        SectionVisibleCounts[SectionKey(section)] = SectionMinimumVisibleCount(section);
+    }
+
+    private void HideSection(CatalogSectionViewModel section)
+    {
+        SectionVisibleCounts[SectionKey(section)] = 0;
+    }
+
+    private void SyncSectionVisibility()
+    {
+        var validKeys = Sections.Select(SectionKey).ToHashSet(StringComparer.Ordinal);
+        foreach (var staleKey in SectionVisibleCounts.Keys.Where(key => !validKeys.Contains(key)).ToList())
+        {
+            SectionVisibleCounts.Remove(staleKey);
+        }
+
+        foreach (var section in Sections)
+        {
+            var key = SectionKey(section);
+            var minimumVisibleCount = SectionMinimumVisibleCount(section);
+            if (!SectionVisibleCounts.TryGetValue(key, out var currentCount))
+            {
+                SectionVisibleCounts[key] = minimumVisibleCount;
+                continue;
+            }
+
+            SectionVisibleCounts[key] = Math.Min(section.Count, Math.Max(minimumVisibleCount, currentCount));
+        }
+    }
+
+    private int CurrentVisibleCount(CatalogSectionViewModel section)
+    {
+        return SectionVisibleCounts.GetValueOrDefault(SectionKey(section), SectionMinimumVisibleCount(section));
+    }
+
+    private int SectionMinimumVisibleCount(CatalogSectionViewModel section)
+    {
+        return section.StartsCollapsed
+            ? 0
+            : Math.Min(section.Count, SectionInitialSize());
+    }
+
+    private int SectionInitialSize()
+    {
+        return HasCatalogFilters ? FilteredSectionInitialSize : BrowseSectionInitialSize;
+    }
+
+    private async Task RefreshSuggestionsAsync(CancellationToken cancellationToken)
+    {
+        Suggestions = string.IsNullOrWhiteSpace(SearchText)
+            ? []
+            : await CatalogService.SuggestAsync(SearchText, 8, cancellationToken);
+        ResetSuggestionSelection();
+    }
+
+    private async Task ActivateActiveSuggestionAsync()
+    {
+        if (ActiveSuggestionIndex < 0 || ActiveSuggestionIndex >= SuggestionOptionCount)
+        {
+            await ApplyFiltersAndFocusResultsAsync();
+            return;
+        }
+
+        if (ActiveSuggestionIndex < Suggestions.Count)
+        {
+            OpenSuggestion(Suggestions[ActiveSuggestionIndex]);
+            return;
+        }
+
+        await ApplyFiltersAndFocusResultsAsync();
+    }
+
+    private void MoveActiveSuggestion(int step)
+    {
+        if (SuggestionOptionCount == 0)
+        {
+            ActiveSuggestionIndex = -1;
+            return;
+        }
+
+        ActiveSuggestionIndex = ActiveSuggestionIndex < 0
+            ? 0
+            : (ActiveSuggestionIndex + step + SuggestionOptionCount) % SuggestionOptionCount;
+    }
+
+    private void ResetSuggestionSelection()
+    {
+        ActiveSuggestionIndex = Suggestions.Count > 0 ? 0 : -1;
+    }
+
+    private void OpenSuggestionPanel()
+    {
+        CancelPendingSuggestionClose();
+        IsSuggestionPanelOpen = true;
+    }
+
+    private async Task CloseSuggestionPanelAfterDelayAsync()
+    {
+        CancelPendingSuggestionClose();
+        var closeCts = new CancellationTokenSource();
+        _suggestionCloseCts = closeCts;
+
+        try
+        {
+            await Task.Delay(SuggestionCloseDelayMilliseconds, closeCts.Token);
+            if (!ReferenceEquals(_suggestionCloseCts, closeCts))
+            {
+                return;
+            }
+
+            IsSuggestionPanelOpen = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (closeCts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_suggestionCloseCts, closeCts))
+            {
+                _suggestionCloseCts = null;
+            }
+
+            closeCts.Dispose();
+        }
+    }
+
+    private void CloseSuggestionPanel()
+    {
+        CancelPendingSuggestionClose();
+        IsSuggestionPanelOpen = false;
+    }
+
+    private void CancelPendingSuggestionClose()
+    {
+        _suggestionCloseCts?.Cancel();
+        _suggestionCloseCts = null;
+    }
+
+    private void CancelPendingSearchRefresh(bool clearBusyState)
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts = null;
+
+        if (clearBusyState)
+        {
+            IsSearchRefreshing = false;
+        }
+    }
+
+    private SearchAssistViewModel BuildSearchAssist()
+    {
+        if (IsSearchRefreshing)
+        {
+            return new SearchAssistViewModel(
+                "Buscando agora",
+                $"Atualizando resultados e sugestoes para \"{SearchText}\".",
+                "loading");
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            return new SearchAssistViewModel(
+                "Busca instantanea",
+                "Digite marca, linha ou chipset para ver sugestoes enquanto a lista filtra ao vivo.",
+                "neutral");
+        }
+
+        if (Suggestions.Count == 0)
+        {
+            return new SearchAssistViewModel(
+                "Sem sugestao imediata",
+                "Tente marca, linha ou chipset. A cobertura ampla continua procurando modelos recentes.",
+                "neutral");
+        }
+
+        if (FullSuggestionCount > 0 && (PartialSuggestionCount > 0 || CoverageSuggestionCount > 0))
+        {
+            return new SearchAssistViewModel(
+                $"{Suggestions.Count} sugestoes encontradas",
+                $"{FullSuggestionCount} com ficha pronta, {PartialSuggestionCount} parcial(is) e {CoverageSuggestionCount} em cobertura inicial. Enter abre a melhor opcao pronta.",
+                "good");
+        }
+
+        if (FullSuggestionCount > 0)
+        {
+            return new SearchAssistViewModel(
+                $"{FullSuggestionCount} sugestoes prontas",
+                "Toque em um modelo ou pressione Enter para abrir a melhor correspondencia.",
+                "good");
+        }
+
+        if (PartialSuggestionCount > 0)
+        {
+            return new SearchAssistViewModel(
+                $"{PartialSuggestionCount} ficha(s) parcial(is)",
+                "Esses modelos ja tem parte da ficha publicada, mas ainda nao entram como promessa publica completa.",
+                "warn");
+        }
+
+        return new SearchAssistViewModel(
+            "Cobertura inicial encontrada",
+            "Esses modelos ja aparecem na busca publica, mesmo antes da ficha tecnica completa.",
+            "warn");
+    }
+
+    private PhoneSearchResult? BuildFeaturedMatch()
+    {
+        if (string.IsNullOrWhiteSpace(SearchText) || Phones.Count == 0)
+        {
+            return null;
+        }
+
+        return Phones
+            .Where(phone => phone.IsPublicReady && IsExactSearchMatch(phone, SearchText))
+            .Concat(Phones.Where(phone => phone.IsPartialCatalogEntry && IsExactSearchMatch(phone, SearchText)))
+            .Concat(Phones.Where(phone => !phone.HasFullCatalogEntry && IsExactSearchMatch(phone, SearchText)))
+            .Concat(Phones.Where(phone => phone.IsPublicReady && IsStrongSearchMatch(phone, SearchText)))
+            .Concat(Phones.Where(phone => phone.IsPartialCatalogEntry && IsStrongSearchMatch(phone, SearchText)))
+            .Concat(Phones.Where(phone => !phone.HasFullCatalogEntry && IsStrongSearchMatch(phone, SearchText)))
+            .FirstOrDefault();
+    }
+
+    private IReadOnlyList<CatalogSectionViewModel> BuildSections(IReadOnlyList<PhoneSearchResult> phones)
+    {
+        if (!string.IsNullOrWhiteSpace(SearchText) || !string.IsNullOrWhiteSpace(SelectedTierKey) || !string.IsNullOrWhiteSpace(SelectedBrandSlug))
+        {
+            var fullEntries = phones.Where(phone => phone.IsPublicReady).ToList();
+            var partialEntries = phones.Where(phone => phone.IsPartialCatalogEntry).ToList();
+            var coverageEntries = phones.Where(phone => !phone.HasFullCatalogEntry).ToList();
+            var filteredSections = new List<CatalogSectionViewModel>();
+            var exactCoverageEntries = FindExactSearchMatches(coverageEntries, SearchText);
+            var hasExactCatalogMatch = FindExactSearchMatches(fullEntries.Concat(partialEntries).ToList(), SearchText).Count > 0;
+            var promoteCoverageExactMatch = exactCoverageEntries.Count > 0 && !hasExactCatalogMatch;
+            var remainingCoverageEntries = promoteCoverageExactMatch
+                ? coverageEntries.Where(phone => exactCoverageEntries.All(match => match.Id != phone.Id)).ToList()
+                : coverageEntries;
+
+            if (promoteCoverageExactMatch)
+            {
+                filteredSections.Add(new CatalogSectionViewModel(
+                    "Correspondencia exata",
+                    "O modelo digitado foi encontrado na cobertura ampla e aparece primeiro para nao ficar escondido atras de fichas relacionadas.",
+                    exactCoverageEntries));
+            }
+
+            if (fullEntries.Count > 0)
+            {
+                filteredSections.Add(new CatalogSectionViewModel(
+                    promoteCoverageExactMatch
+                        ? "Fichas completas relacionadas"
+                        : coverageEntries.Count > 0 ? "Fichas completas" : "Resultados encontrados",
+                    promoteCoverageExactMatch
+                        ? "Esses modelos ja estao prontos para comparar enquanto a ficha exata ainda termina de consolidar specs e fontes."
+                        : coverageEntries.Count > 0
+                            ? "Modelos com specs consolidadas, comparacao ativa e leitura pronta para decisao."
+                            : "Tudo que bate com a busca atual aparece aqui, sem esconder a acao principal.",
+                    fullEntries));
+            }
+
+            if (partialEntries.Count > 0)
+            {
+                filteredSections.Add(new CatalogSectionViewModel(
+                    "Fichas parciais",
+                    "Esses modelos ja exibem parte da ficha, mas ainda faltam campos essenciais ou imagem confiavel para serem tratados como promessa publica completa.",
+                    partialEntries,
+                    StartsCollapsed: fullEntries.Count > 0));
+            }
+
+            if (remainingCoverageEntries.Count > 0)
+            {
+                filteredSections.Add(new CatalogSectionViewModel(
+                    promoteCoverageExactMatch ? "Mais cobertura inicial" : "Cobertura inicial",
+                    promoteCoverageExactMatch
+                        ? "Outros modelos encontrados na busca ampla, ainda aguardando consolidacao completa de specs e comparacao."
+                        : "Modelos que ja entram na busca publica, mas ainda estao aguardando consolidacao completa de specs e comparacao.",
+                    remainingCoverageEntries,
+                    StartsCollapsed: fullEntries.Count > 0));
+            }
+
+            return filteredSections;
+        }
+
+        var sections = new List<CatalogSectionViewModel>
+        {
+            CreateSection("Top de linha", "Modelos com foco em camera, desempenho e acabamento premium.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Top de linha")),
+            CreateSection("Intermediarios", "Aparelhos equilibrados para quem quer desempenho e custo mais controlado.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Intermediario")),
+            CreateSection("Entrada", "Modelos acessiveis para uso diario, com leitura simples das limitacoes e pontos fortes.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Entrada")),
+        };
+
+        var partialSection = CreateSection(
+            "Fichas parciais",
+            "Modelos encontrados e parcialmente consolidados, mas ainda fora da faixa de confianca que queremos para uso publico sem ressalvas.",
+            phones.Where(phone => phone.IsPartialCatalogEntry));
+
+        if (partialSection.Count > 0)
+        {
+            sections.Add(partialSection with { StartsCollapsed = true });
+        }
+
+        return sections.Where(item => item.Count > 0).ToList();
+    }
+
+    private static CatalogSectionViewModel CreateSection(string title, string description, IEnumerable<PhoneSearchResult> phones)
+    {
+        return new CatalogSectionViewModel(title, description, phones.ToList());
+    }
+
+    private static string SectionKey(CatalogSectionViewModel section)
+    {
+        return SectionAnchor(section.Title);
+    }
+
+    private IReadOnlyList<ActiveFilterViewModel> BuildActiveFilters()
+    {
+        var filters = new List<ActiveFilterViewModel>();
+
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            filters.Add(new ActiveFilterViewModel("search", $"Busca: {SearchText}"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SelectedBrandSlug))
+        {
+            var brandLabel = BrandOptions.FirstOrDefault(option => option.Slug == SelectedBrandSlug)?.Name ?? SelectedBrandSlug;
+            filters.Add(new ActiveFilterViewModel("brand", $"Marca: {brandLabel}"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SelectedTierKey))
+        {
+            var tierLabel = TierOptions.FirstOrDefault(option => option.Key == SelectedTierKey)?.Label ?? SelectedTierKey;
+            filters.Add(new ActiveFilterViewModel("tier", $"Faixa: {tierLabel}"));
+        }
+
+        if (SelectedSortKey != "auto")
+        {
+            filters.Add(new ActiveFilterViewModel("sort", $"Ordem: {CurrentSortLabel}"));
+        }
+
+        return filters;
+    }
+
+    private static string NormalizeTierKey(string? tier)
+    {
+        return tier?.Trim().ToLowerInvariant() switch
+        {
+            "entrada" => "entrada",
+            "intermediario" => "intermediario",
+            "top" => "top",
+            _ => "",
+        };
+    }
+
+    private static string NormalizeBrandSlug(string? brand)
+    {
+        return brand?.Trim().ToLowerInvariant() ?? "";
+    }
+
+    private static string NormalizeSortKey(string? sort)
+    {
+        return sort?.Trim().ToLowerInvariant() switch
+        {
+            "newest" => "newest",
+            "confidence" => "confidence",
+            "name" => "name",
+            _ => "auto",
+        };
+    }
+
+    private static ClassificationTier? ParseTier(string? tier)
+    {
+        return NormalizeTierKey(tier) switch
+        {
+            "entrada" => ClassificationTier.Entry,
+            "intermediario" => ClassificationTier.MidRange,
+            "top" => ClassificationTier.Flagship,
+            _ => null,
+        };
+    }
+
+    private static CatalogSortOption ParseSort(string? sort, string? currentQuery)
+    {
+        return NormalizeSortKey(sort) switch
+        {
+            "newest" => CatalogSortOption.Newest,
+            "confidence" => CatalogSortOption.Confidence,
+            "name" => CatalogSortOption.Name,
+            _ => string.IsNullOrWhiteSpace(currentQuery)
+                ? CatalogSortOption.Newest
+                : CatalogSortOption.Relevance,
+        };
+    }
+
+    private static string FormatRelease(DateTimeOffset? releasedAt)
+    {
+        return releasedAt is null
+            ? "Sem data publicada"
+            : $"Lancado em {releasedAt.Value:MMM yyyy}";
+    }
+
+    private static string SuggestionMeta(PhoneSuggestionDto suggestion)
+    {
+        if (!suggestion.HasFullCatalogEntry)
+        {
+            return "Cobertura inicial · ficha completa em preparacao";
+        }
+
+        return string.IsNullOrWhiteSpace(suggestion.Chipset)
+            ? suggestion.PrimaryBadgeLabel
+            : $"{suggestion.PrimaryBadgeLabel} · {CompactChipset(suggestion.Chipset)}";
+    }
+
+    private static string PresetTitle(ComparisonQuickStartDto preset)
+    {
+        return $"{preset.Left.ModelName} x {preset.Right.ModelName}";
+    }
+
+    private static string PresetPhoneMeta(PhoneSearchResult phone)
+    {
+        return string.IsNullOrWhiteSpace(phone.Chipset)
+            ? phone.Tier
+            : $"{phone.Tier} · {CompactChipset(phone.Chipset)}";
+    }
+
+    private static string PresetCompareUrl(ComparisonQuickStartDto preset)
+    {
+        return $"/comparar?ids={preset.Left.Id},{preset.Right.Id}";
+    }
+
+    private static IReadOnlyList<PhoneSearchResult> FindExactSearchMatches(IReadOnlyList<PhoneSearchResult> phones, string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        return phones
+            .Where(phone => IsExactSearchMatch(phone, query))
+            .ToList();
+    }
+
+    private static bool IsExactSearchMatch(PhoneSearchResult result, string? query)
+    {
+        var normalizedQuery = PhoneSearchText.Normalize(query);
+        if (normalizedQuery.Length == 0)
+        {
+            return false;
+        }
+
+        var normalizedBrand = PhoneSearchText.Normalize(result.Brand);
+        var normalizedModel = PhoneSearchText.Normalize(result.ModelName);
+        var normalizedName = PhoneSearchText.Normalize(result.Name);
+        var normalizedFullName = PhoneSearchText.Normalize(result.FullName);
+        var normalizedQueryWithoutBrand = StripLeadingBrand(normalizedQuery, normalizedBrand);
+
+        var queryForms = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            normalizedQuery,
+        };
+
+        if (normalizedQueryWithoutBrand.Length > 0)
+        {
+            queryForms.Add(normalizedQueryWithoutBrand);
+        }
+
+        var candidateForms = new[]
+        {
+            normalizedModel,
+            normalizedName,
+            normalizedFullName,
+            StripLeadingBrand(normalizedModel, normalizedBrand),
+            StripLeadingBrand(normalizedName, normalizedBrand),
+            StripLeadingBrand(normalizedFullName, normalizedBrand),
+        };
+
+        return candidateForms
+            .Where(form => !string.IsNullOrWhiteSpace(form))
+            .Any(queryForms.Contains);
+    }
+
+    private static bool IsStrongSearchMatch(PhoneSearchResult result, string query)
+    {
+        var normalizedQuery = PhoneSearchText.Normalize(query);
+        if (normalizedQuery.Length == 0)
+        {
+            return false;
+        }
+
+        var normalizedBrand = PhoneSearchText.Normalize(result.Brand);
+        var normalizedModel = PhoneSearchText.Normalize(result.ModelName);
+        var normalizedName = PhoneSearchText.Normalize(result.Name);
+        var normalizedFullName = PhoneSearchText.Normalize(result.FullName);
+        var normalizedQueryWithoutBrand = StripLeadingBrand(normalizedQuery, normalizedBrand);
+
+        var queryForms = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            normalizedQuery,
+        };
+        if (normalizedQueryWithoutBrand.Length > 0)
+        {
+            queryForms.Add(normalizedQueryWithoutBrand);
+        }
+
+        var candidateForms = new[]
+        {
+            normalizedModel,
+            normalizedName,
+            normalizedFullName,
+            StripLeadingBrand(normalizedModel, normalizedBrand),
+            StripLeadingBrand(normalizedName, normalizedBrand),
+            StripLeadingBrand(normalizedFullName, normalizedBrand),
+        };
+
+        return candidateForms
+            .Where(form => !string.IsNullOrWhiteSpace(form))
+            .Any(candidate => queryForms.Any(queryForm => candidate.StartsWith(queryForm, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static string FeaturedMatchDescription(PhoneSearchResult phone)
+    {
+        if (!phone.HasFullCatalogEntry)
+        {
+            return "Encontramos o modelo certo na cobertura ampla. Abra a ficha para consolidar imagem, specs e comparacao publica.";
+        }
+
+        if (!phone.IsPublicReady)
+        {
+            return $"Ficha parcial · {phone.ReadinessNote}";
+        }
+
+        var releaseLabel = phone.ReleasedAt is null
+            ? "Data ainda nao publicada"
+            : $"Lancado em {phone.ReleasedAt:MMM yyyy}";
+
+        return $"{releaseLabel} · {phone.SpecCount} specs publicadas · confianca minima {phone.MinConfidence.ToString("P0")}";
+    }
+
+    private static string CardMeta(PhoneSearchResult phone)
+    {
+        if (!phone.HasFullCatalogEntry)
+        {
+            return "Modelo encontrado na busca ampla. Ficha completa em preparacao.";
+        }
+
+        if (!phone.IsPublicReady)
+        {
+            return $"Ficha parcial · {phone.TrustLabel} · {phone.ReadinessNote}";
+        }
+
+        var parts = new List<string>
+        {
+            FormatRelease(phone.ReleasedAt),
+        };
+
+        if (phone.LaunchPriceUsd is not null)
+        {
+            parts.Add($"US$ {phone.LaunchPriceUsd.Value:0} no lancamento");
+        }
+
+        parts.Add($"{phone.TrustLabel} · confianca {phone.MinConfidence.ToString("P0")}");
+        parts.Add(FreshnessFormatter.UpdatedLabel(phone.UpdatedAt));
+        return string.Join(" · ", parts);
+    }
+
+    private static CompareSelectionItem ToCompareSelectionItem(PhoneSearchResult phone)
+    {
+        return new CompareSelectionItem(
+            phone.Id,
+            phone.Brand,
+            phone.BrandSlug,
+            phone.Name,
+            phone.Slug,
+            phone.Tier,
+            phone.HasFullCatalogEntry);
+    }
+
+    private static string SuggestionId(int index)
+    {
+        return $"catalog-suggestion-{index}";
+    }
+
+    private static string SectionAnchor(string title)
+    {
+        return $"catalog-{Slugger.Slugify(title)}";
+    }
+
+    private static string StripLeadingBrand(string value, string normalizedBrand)
+    {
+        if (value.Length == 0 || normalizedBrand.Length == 0)
+        {
+            return value;
+        }
+
+        return value.StartsWith(normalizedBrand, StringComparison.OrdinalIgnoreCase)
+            ? value[normalizedBrand.Length..]
+            : value;
+    }
+
+    private static string CompactChipset(string? chipset)
+    {
+        var compact = PhoneNameFormatter.CompactChipset(chipset);
+        return string.IsNullOrWhiteSpace(compact) ? "-" : compact;
+    }
+
+    private sealed record FilterOption(string Key, string Label);
+    private sealed record ActiveFilterViewModel(string Key, string Label);
+    private sealed record SearchAssistViewModel(string Title, string Message, string Tone);
+
+    private sealed record CatalogSectionViewModel(
+        string Title,
+        string Description,
+        IReadOnlyList<PhoneSearchResult> Phones,
+        bool StartsCollapsed = false)
+    {
+        public int Count => Phones.Count;
+    }
+
+    public void Dispose()
+    {
+        CancelPendingSearchRefresh(clearBusyState: false);
+        CancelPendingSuggestionClose();
+    }
+}

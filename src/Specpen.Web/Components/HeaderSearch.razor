@@ -1,0 +1,342 @@
+@implements IDisposable
+@inject CatalogService Catalog
+@inject NavigationManager Navigation
+
+<div class="topbar-search-shell">
+    <button class="button subtle compact topbar-search-toggle"
+            type="button"
+            aria-expanded="@IsMobileSearchOpen"
+            @onclick="ToggleMobileSearch">
+        @(IsMobileSearchOpen ? "Fechar busca" : "Buscar")
+    </button>
+
+    <div class="topbar-search @(IsMobileSearchOpen ? "open" : null)">
+        <label class="visually-hidden" for="topbar-search-input">Buscar em qualquer pagina</label>
+        <div class="search-input-shell topbar-search-row">
+            <input id="topbar-search-input"
+                   value="@SearchText"
+                   @oninput="OnSearchChanged"
+                   @onfocus="OnSearchFocused"
+                   @onblur="OnSearchBlur"
+                   @onkeydown="OnSearchKeyDown"
+                   autocomplete="off"
+                   autocapitalize="off"
+                   autocorrect="off"
+                   spellcheck="false"
+                   inputmode="search"
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="@(HasSuggestions ? "true" : "false")"
+                   aria-controls="topbar-suggestions"
+                   aria-activedescendant="@ActiveSuggestionId"
+                   placeholder="Buscar celular..." />
+            <button class="button subtle compact" type="button" @onclick="OpenCatalogSearch">Ir</button>
+        </div>
+
+        @if (HasSuggestions)
+        {
+            <div id="topbar-suggestions" class="suggestion-panel" role="listbox" aria-label="Sugestoes globais">
+                @for (var index = 0; index < Suggestions.Count; index++)
+                {
+                    var suggestion = Suggestions[index];
+                    var isActive = ActiveSuggestionIndex == index;
+                    <button class="suggestion-item @(isActive ? "active" : null)"
+                            id="@SuggestionId(index)"
+                            role="option"
+                            aria-selected="@isActive"
+                            type="button"
+                            @onclick="() => OpenSuggestion(suggestion)">
+                        <span class="suggestion-title">@suggestion.FullName</span>
+                        <span class="suggestion-meta">@SuggestionMeta(suggestion)</span>
+                    </button>
+                }
+                <button class="suggestion-item more @(ActiveSuggestionIndex == Suggestions.Count ? "active" : null)"
+                        id="@SuggestionId(Suggestions.Count)"
+                        role="option"
+                        aria-selected="@(ActiveSuggestionIndex == Suggestions.Count)"
+                        type="button"
+                        @onclick="OpenCatalogSearch">
+                    <span class="suggestion-title">Ver resultados completos</span>
+                    <span class="suggestion-meta">Abrir o catalogo com a busca atual</span>
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private const int SearchDebounceMilliseconds = 160;
+    private const int SuggestionCloseDelayMilliseconds = 120;
+
+    private IReadOnlyList<PhoneSuggestionDto> Suggestions { get; set; } = [];
+    private string SearchText { get; set; } = "";
+    private int ActiveSuggestionIndex { get; set; } = -1;
+    private bool IsMobileSearchOpen { get; set; }
+    private bool IsSuggestionPanelOpen { get; set; }
+    private bool HasSuggestions => IsSuggestionPanelOpen && Suggestions.Count > 0 && !string.IsNullOrWhiteSpace(SearchText);
+    private int SuggestionOptionCount => HasSuggestions ? Suggestions.Count + 1 : 0;
+    private string? ActiveSuggestionId => ActiveSuggestionIndex >= 0 ? SuggestionId(ActiveSuggestionIndex) : null;
+
+    private CancellationTokenSource? _searchDebounceCts;
+    private CancellationTokenSource? _suggestionCloseCts;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private async Task OnSearchChanged(ChangeEventArgs args)
+    {
+        SearchText = args.Value?.ToString()?.TrimStart() ?? "";
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            OpenSuggestionPanel();
+        }
+
+        await QueueSearchRefreshAsync();
+    }
+
+    private async Task OnSearchFocused(FocusEventArgs _)
+    {
+        OpenSuggestionPanel();
+        await RefreshSuggestionsAsync(CancellationToken.None);
+    }
+
+    private async Task OnSearchBlur(FocusEventArgs _)
+    {
+        await CloseSuggestionPanelAfterDelayAsync();
+    }
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        switch (args.Key)
+        {
+            case "ArrowDown":
+                MoveActiveSuggestion(1);
+                break;
+            case "ArrowUp":
+                MoveActiveSuggestion(-1);
+                break;
+            case "Escape":
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                CloseSuggestionPanel();
+                break;
+            case "Enter":
+                if (HasSuggestions)
+                {
+                    await ActivateActiveSuggestionAsync();
+                }
+                else
+                {
+                    OpenCatalogSearch();
+                }
+
+                break;
+        }
+    }
+
+    private void ToggleMobileSearch()
+    {
+        IsMobileSearchOpen = !IsMobileSearchOpen;
+        if (!IsMobileSearchOpen)
+        {
+            CloseSuggestionPanel();
+        }
+    }
+
+    private async Task QueueSearchRefreshAsync()
+    {
+        CancelPendingSearchRefresh();
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            Suggestions = [];
+            ActiveSuggestionIndex = -1;
+            return;
+        }
+
+        var debounceCts = new CancellationTokenSource();
+        _searchDebounceCts = debounceCts;
+
+        try
+        {
+            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
+            await RefreshSuggestionsAsync(debounceCts.Token);
+        }
+        catch (OperationCanceledException) when (debounceCts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_searchDebounceCts, debounceCts))
+            {
+                _searchDebounceCts = null;
+            }
+
+            debounceCts.Dispose();
+        }
+    }
+
+    private async Task RefreshSuggestionsAsync(CancellationToken cancellationToken)
+    {
+        Suggestions = string.IsNullOrWhiteSpace(SearchText)
+            ? []
+            : await Catalog.SuggestAsync(SearchText, 6, cancellationToken);
+        ResetSuggestionSelection();
+    }
+
+    private async Task ActivateActiveSuggestionAsync()
+    {
+        if (ActiveSuggestionIndex < 0 || ActiveSuggestionIndex >= SuggestionOptionCount)
+        {
+            OpenCatalogSearch();
+            return;
+        }
+
+        if (ActiveSuggestionIndex < Suggestions.Count)
+        {
+            OpenSuggestion(Suggestions[ActiveSuggestionIndex]);
+            return;
+        }
+
+        OpenCatalogSearch();
+        await Task.CompletedTask;
+    }
+
+    private void OpenSuggestion(PhoneSuggestionDto suggestion)
+    {
+        ResetSearchUi();
+        Navigation.NavigateTo($"/celulares/{suggestion.BrandSlug}/{suggestion.Slug}");
+    }
+
+    private void OpenCatalogSearch()
+    {
+        var currentQuery = SearchText;
+        ResetSearchUi();
+        if (string.IsNullOrWhiteSpace(currentQuery))
+        {
+            Navigation.NavigateTo("/celulares");
+            return;
+        }
+
+        var targetUrl = Navigation.GetUriWithQueryParameters("/celulares", new Dictionary<string, object?>
+        {
+            ["busca"] = currentQuery,
+        });
+
+        Navigation.NavigateTo($"{targetUrl}#catalog-results");
+    }
+
+    private void MoveActiveSuggestion(int step)
+    {
+        if (SuggestionOptionCount == 0)
+        {
+            ActiveSuggestionIndex = -1;
+            return;
+        }
+
+        ActiveSuggestionIndex = ActiveSuggestionIndex < 0
+            ? 0
+            : (ActiveSuggestionIndex + step + SuggestionOptionCount) % SuggestionOptionCount;
+    }
+
+    private void ResetSuggestionSelection()
+    {
+        ActiveSuggestionIndex = Suggestions.Count > 0 ? 0 : -1;
+    }
+
+    private void OpenSuggestionPanel()
+    {
+        CancelPendingSuggestionClose();
+        IsSuggestionPanelOpen = true;
+    }
+
+    private async Task CloseSuggestionPanelAfterDelayAsync()
+    {
+        CancelPendingSuggestionClose();
+        var closeCts = new CancellationTokenSource();
+        _suggestionCloseCts = closeCts;
+
+        try
+        {
+            await Task.Delay(SuggestionCloseDelayMilliseconds, closeCts.Token);
+            if (!ReferenceEquals(_suggestionCloseCts, closeCts))
+            {
+                return;
+            }
+
+            IsSuggestionPanelOpen = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (closeCts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_suggestionCloseCts, closeCts))
+            {
+                _suggestionCloseCts = null;
+            }
+
+            closeCts.Dispose();
+        }
+    }
+
+    private void CloseSuggestionPanel()
+    {
+        CancelPendingSuggestionClose();
+        IsSuggestionPanelOpen = false;
+    }
+
+    private void CancelPendingSuggestionClose()
+    {
+        _suggestionCloseCts?.Cancel();
+        _suggestionCloseCts = null;
+    }
+
+    private void CancelPendingSearchRefresh()
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts = null;
+    }
+
+    private void ResetSearchUi()
+    {
+        CancelPendingSearchRefresh();
+        Suggestions = [];
+        ActiveSuggestionIndex = -1;
+        SearchText = "";
+        IsMobileSearchOpen = false;
+        CloseSuggestionPanel();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        ResetSearchUi();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static string SuggestionMeta(PhoneSuggestionDto suggestion)
+    {
+        if (!suggestion.HasFullCatalogEntry)
+        {
+            return "Cobertura inicial · ficha completa em preparacao";
+        }
+
+        return string.IsNullOrWhiteSpace(suggestion.Chipset)
+            ? suggestion.PrimaryBadgeLabel
+            : $"{suggestion.PrimaryBadgeLabel} · {PhoneNameFormatter.CompactChipset(suggestion.Chipset)}";
+    }
+
+    private static string SuggestionId(int index)
+    {
+        return $"topbar-suggestion-{index}";
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        CancelPendingSearchRefresh();
+        CancelPendingSuggestionClose();
+    }
+}

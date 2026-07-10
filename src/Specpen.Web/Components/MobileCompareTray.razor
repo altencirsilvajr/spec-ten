@@ -1,0 +1,166 @@
+@implements IDisposable
+@inject CompareSelectionState CompareSelection
+@inject NavigationManager Navigation
+
+@if (ShouldShowTray)
+{
+    <div class="mobile-compare-bar-spacer @(IsExpanded ? "expanded" : "collapsed")" aria-hidden="true"></div>
+    <section class="mobile-compare-bar @(IsExpanded ? "expanded" : "collapsed")" aria-label="Comparacao fixa do site">
+        <div class="mobile-compare-bar-top">
+            <button class="mobile-compare-bar-summary"
+                    type="button"
+                    aria-expanded="@IsExpanded"
+                    @onclick="ToggleExpanded">
+                <div class="mobile-compare-bar-copy">
+                    <strong>@SelectionHeadline</strong>
+                    <span>@(IsExpanded ? SelectionHint : CompactSelectionHint)</span>
+                </div>
+                <span class="mobile-compare-bar-toggle">@ToggleLabel</span>
+            </button>
+
+            <button class="button primary compact" type="button" @onclick="OpenCompareFlow">
+                @PrimaryActionLabel
+            </button>
+        </div>
+
+        @if (IsExpanded)
+        {
+            <div class="mobile-compare-bar-extra">
+                <small class="mobile-compare-bar-list">@SelectionSummary</small>
+                <button class="button subtle compact" type="button" @onclick="ClearSelection">Limpar selecao</button>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private bool IsExpanded { get; set; }
+
+    protected override void OnInitialized()
+    {
+        CompareSelection.Changed += OnCompareSelectionChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        if (await CompareSelection.EnsureHydratedAsync())
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool ShouldShowTray => CompareSelection.Count >= 2 && !IsComparePage && !IsHomePage;
+
+    private bool IsComparePage
+    {
+        get
+        {
+            var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
+            return relativePath.StartsWith("comparar", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private bool IsHomePage
+    {
+        get
+        {
+            var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
+            return string.IsNullOrWhiteSpace(relativePath);
+        }
+    }
+
+    private string SelectionHeadline => CompareSelection.Count switch
+    {
+        1 => "1 aparelho salvo para comparar",
+        _ => $"{CompareSelection.Count} aparelhos prontos"
+    };
+
+    private string SelectionHint => CompareSelection.Count switch
+    {
+        1 => "Falta mais 1 aparelho para abrir a tabela lado a lado.",
+        2 => "Tudo pronto para abrir a comparacao sem perder o contexto.",
+        _ => "Sua selecao continua salva enquanto voce navega pelo catalogo."
+    };
+
+    private string CompactSelectionHint => CompareSelection.Count switch
+    {
+        1 => "Escolha mais um aparelho para liberar a tabela.",
+        2 => "Comparacao pronta.",
+        _ => "Selecao salva."
+    };
+
+    private string PrimaryActionLabel => CompareSelection.Count switch
+    {
+        1 => "Escolher rival",
+        _ => "Comparar agora"
+    };
+
+    private string ToggleLabel => IsExpanded ? "Recolher" : "Detalhes";
+
+    private string SelectionSummary
+    {
+        get
+        {
+            var selectedNames = CompareSelection.Items
+                .Take(2)
+                .Select(item => item.FullName)
+                .ToList();
+
+            if (selectedNames.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            if (CompareSelection.Count <= 2)
+            {
+                return string.Join(" • ", selectedNames);
+            }
+
+            return $"{string.Join(" • ", selectedNames)} +{CompareSelection.Count - 2}";
+        }
+    }
+
+    private void OpenCompareFlow()
+    {
+        Navigation.NavigateTo(CompareSelection.BuildCompareUrl());
+    }
+
+    private void ToggleExpanded()
+    {
+        IsExpanded = !IsExpanded;
+    }
+
+    private void ClearSelection()
+    {
+        IsExpanded = false;
+        CompareSelection.Clear();
+    }
+
+    private void OnCompareSelectionChanged()
+    {
+        if (CompareSelection.Count < 2)
+        {
+            IsExpanded = false;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        IsExpanded = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CompareSelection.Changed -= OnCompareSelectionChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}
