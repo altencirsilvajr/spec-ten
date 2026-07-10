@@ -1,0 +1,708 @@
+{
+  "phones": [
+    {
+      "sourceName": "Xiaomi Global",
+      "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/",
+      "policyStatus": "ManualFeed",
+      "robotsAllowed": true,
+      "isOfficial": true,
+      "brandName": "Xiaomi",
+      "officialDomain": "mi.com",
+      "modelName": "15",
+      "summary": "Flagship compacto com Snapdragon 8 Elite, lentes Leica e carregamento rapido sem abrir mao da bateria.",
+      "releasedAt": "2025-03-02T00:00:00Z",
+      "imageUrl": "https://i02.appmifile.com/339_operatorx_operatorx_opx/02/03/2025/73371d9d0ca9843bcab6875541dc2905.png",
+      "imageSourceUrl": "https://www.mi.com/global/product/xiaomi-15/",
+      "specs": [
+        {
+          "group": "Performance",
+          "key": "chipset",
+          "displayName": "Chipset",
+          "value": "Snapdragon 8 Elite Mobile Platform",
+          "isCritical": true,
+          "confidence": 0.98,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Memoria",
+          "key": "ram",
+          "displayName": "RAM",
+          "value": "12 GB",
+          "unit": "GB",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Armazenamento",
+          "key": "storage_base",
+          "displayName": "Armazenamento base",
+          "value": "256 GB",
+          "unit": "GB",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Tela",
+          "key": "display_size",
+          "displayName": "Tamanho da tela",
+          "value": "6.36 in",
+          "unit": "in",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Tela",
+          "key": "display_type",
+          "displayName": "Painel",
+          "value": "CrystalRes AMOLED LTPO",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/"
+        },
+        {
+          "group": "Tela",
+          "key": "resolution",
+          "displayName": "Resolucao",
+          "value": "2670 x 1200",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Tela",
+          "key": "refresh_rate",
+          "displayName": "Taxa de atualizacao",
+          "value": "120 Hz",
+          "unit": "Hz",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Camera",
+          "key": "main_camera",
+          "displayName": "Camera principal",
+          "value": "50 MP",
+          "unit": "MP",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Camera",
+          "key": "ultrawide_camera",
+          "displayName": "Ultra-wide",
+          "value": "50 MP",
+          "unit": "MP",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Camera",
+          "key": "telephoto_camera",
+          "displayName": "Teleobjetiva",
+          "value": "50 MP",
+          "unit": "MP",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Camera",
+          "key": "selfie_camera",
+          "displayName": "Camera frontal",
+          "value": "32 MP",
+          "unit": "MP",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Bateria",
+          "key": "battery",
+          "displayName": "Bateria",
+          "value": "5240 mAh",
+          "unit": "mAh",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Bateria",
+          "key": "charging",
+          "displayName": "Carregamento",
+          "value": "90 W",
+          "unit": "W",
+          "isCritical": true,
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Bateria",
+          "key": "wireless_charging",
+          "displayName": "Carregamento sem fio",
+          "value": "50 W",
+          "unit": "W",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Construcao",
+          "key": "weight",
+          "displayName": "Peso",
+          "value": "191 g",
+          "unit": "g",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/"
+        },
+        {
+          "group": "Construcao",
+          "key": "ip_rating",
+          "displayName": "Resistencia",
+          "value": "IP68",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        },
+        {
+          "group": "Software",
+          "key": "os",
+          "displayName": "Sistema",
+          "value": "Xiaomi HyperOS 2",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.mi.com/global/product/xiaomi-15/specs/"
+        }
+      ],
+      "variants": [
+        {
+          "name": "12 GB / 256 GB",
+          "ramGb": 12,
+          "storageGb": 256
+        },
+        {
+          "name": "12 GB / 512 GB",
+          "ramGb": 12,
+          "storageGb": 512
+        }
+      ]
+    },
+    {
+      "sourceName": "OnePlus",
+      "sourceUrl": "https://www.oneplus.com/us/13",
+      "policyStatus": "ManualFeed",
+      "robotsAllowed": true,
+      "isOfficial": true,
+      "brandName": "OnePlus",
+      "officialDomain": "oneplus.com",
+      "modelName": "13",
+      "summary": "Topo de linha com foco total em desempenho, autonomia longa e conjunto de cameras Hasselblad.",
+      "releasedAt": "2025-01-07T00:00:00Z",
+      "launchPriceUsd": 899.99,
+      "imageUrl": "https://www.oneplus.com/content/dam/oneplus/2024/nav/13-Black.png",
+      "imageSourceUrl": "https://www.oneplus.com/us/13",
+      "specs": [
+        {
+          "group": "Performance",
+          "key": "chipset",
+          "displayName": "Chipset",
+          "value": "Snapdragon 8 Elite Mobile Platform",
+          "isCritical": true,
+          "confidence": 0.98,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Memoria",
+          "key": "ram",
+          "displayName": "RAM",
+          "value": "12 GB",
+          "unit": "GB",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Armazenamento",
+          "key": "storage_base",
+          "displayName": "Armazenamento base",
+          "value": "256 GB",
+          "unit": "GB",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Tela",
+          "key": "display_size",
+          "displayName": "Tamanho da tela",
+          "value": "6.82 in",
+          "unit": "in",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Tela",
+          "key": "display_type",
+          "displayName": "Painel",
+          "value": "ProXDR LTPO 4.1 AMOLED",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Tela",
+          "key": "resolution",
+          "displayName": "Resolucao",
+          "value": "3168 x 1440",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Tela",
+          "key": "refresh_rate",
+          "displayName": "Taxa de atualizacao",
+          "value": "120 Hz",
+          "unit": "Hz",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Camera",
+          "key": "main_camera",
+          "displayName": "Camera principal",
+          "value": "50 MP",
+          "unit": "MP",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.oneplus.com/us/press/press-release/oneplus-launches-new-smartphone-flagship-series-in-north-america-oneplus-13-and-oneplus-13r"
+        },
+        {
+          "group": "Camera",
+          "key": "ultrawide_camera",
+          "displayName": "Ultra-wide",
+          "value": "50 MP",
+          "unit": "MP",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/press/press-release/oneplus-launches-new-smartphone-flagship-series-in-north-america-oneplus-13-and-oneplus-13r"
+        },
+        {
+          "group": "Camera",
+          "key": "telephoto_camera",
+          "displayName": "Teleobjetiva",
+          "value": "50 MP 3x",
+          "unit": "MP",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/press/press-release/oneplus-launches-new-smartphone-flagship-series-in-north-america-oneplus-13-and-oneplus-13r"
+        },
+        {
+          "group": "Bateria",
+          "key": "battery",
+          "displayName": "Bateria",
+          "value": "6000 mAh",
+          "unit": "mAh",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Bateria",
+          "key": "charging",
+          "displayName": "Carregamento",
+          "value": "80 W",
+          "unit": "W",
+          "isCritical": true,
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Bateria",
+          "key": "wireless_charging",
+          "displayName": "Carregamento sem fio",
+          "value": "50 W",
+          "unit": "W",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Construcao",
+          "key": "weight",
+          "displayName": "Peso",
+          "value": "210 g",
+          "unit": "g",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        },
+        {
+          "group": "Construcao",
+          "key": "ip_rating",
+          "displayName": "Resistencia",
+          "value": "IP69 / IP68",
+          "confidence": 0.96,
+          "sourceUrl": "https://www.oneplus.com/us/13"
+        },
+        {
+          "group": "Software",
+          "key": "os",
+          "displayName": "Sistema",
+          "value": "OxygenOS 15.0 based on Android 15",
+          "confidence": 0.95,
+          "sourceUrl": "https://www.oneplus.com/us/13/specs"
+        }
+      ],
+      "variants": [
+        {
+          "name": "12 GB / 256 GB",
+          "ramGb": 12,
+          "storageGb": 256
+        },
+        {
+          "name": "16 GB / 512 GB",
+          "ramGb": 16,
+          "storageGb": 512
+        }
+      ]
+    },
+    {
+      "sourceName": "Google",
+      "sourceUrl": "https://blog.google/products-and-platforms/devices/pixel/google-pixel-9a/",
+      "policyStatus": "ManualFeed",
+      "robotsAllowed": true,
+      "isOfficial": true,
+      "brandName": "Google",
+      "officialDomain": "google.com",
+      "modelName": "Pixel 9a",
+      "summary": "Intermediario premium com camera forte, bateria grande e experiencia Android limpa por um preco mais acessivel.",
+      "releasedAt": "2025-04-10T00:00:00Z",
+      "launchPriceUsd": 499,
+      "imageUrl": "https://lh3.googleusercontent.com/0FQnNXFGulZ3DGGAPJJOfgwwAW3qEPyjpWg2SLBkmuIU3-c6FxDcmGBEspqPxKFZzTRHXuiCilf-VlDVAEEZzVb4TeP3JNuKnPQi=rj-sc0xffffffff",
+      "imageSourceUrl": "https://blog.google/products-and-platforms/devices/pixel/google-pixel-9a/",
+      "specs": [
+        {
+          "group": "Performance",
+          "key": "chipset",
+          "displayName": "Chipset",
+          "value": "Google Tensor G4",
+          "isCritical": true,
+          "confidence": 0.98,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Memoria",
+          "key": "ram",
+          "displayName": "RAM",
+          "value": "8 GB",
+          "unit": "GB",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Armazenamento",
+          "key": "storage_base",
+          "displayName": "Armazenamento base",
+          "value": "128 GB",
+          "unit": "GB",
+          "confidence": 0.96,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Tela",
+          "key": "display_size",
+          "displayName": "Tamanho da tela",
+          "value": "6.3 in",
+          "unit": "in",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Tela",
+          "key": "display_type",
+          "displayName": "Painel",
+          "value": "pOLED",
+          "confidence": 0.96,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Tela",
+          "key": "resolution",
+          "displayName": "Resolucao",
+          "value": "2424 x 1080",
+          "confidence": 0.96,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Tela",
+          "key": "refresh_rate",
+          "displayName": "Taxa de atualizacao",
+          "value": "120 Hz",
+          "unit": "Hz",
+          "confidence": 0.95,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Camera",
+          "key": "main_camera",
+          "displayName": "Camera principal",
+          "value": "48 MP",
+          "unit": "MP",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Camera",
+          "key": "ultrawide_camera",
+          "displayName": "Ultra-wide",
+          "value": "13 MP",
+          "unit": "MP",
+          "confidence": 0.96,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Camera",
+          "key": "selfie_camera",
+          "displayName": "Camera frontal",
+          "value": "13 MP",
+          "unit": "MP",
+          "confidence": 0.95,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Bateria",
+          "key": "battery",
+          "displayName": "Bateria",
+          "value": "5100 mAh",
+          "unit": "mAh",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Bateria",
+          "key": "charging",
+          "displayName": "Carregamento",
+          "value": "27 W",
+          "unit": "W",
+          "isCritical": true,
+          "confidence": 0.94,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/15475035?hl=en-AU"
+        },
+        {
+          "group": "Bateria",
+          "key": "wireless_charging",
+          "displayName": "Carregamento sem fio",
+          "value": "Qi wireless charging",
+          "confidence": 0.88,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7106961?hl=en"
+        },
+        {
+          "group": "Construcao",
+          "key": "weight",
+          "displayName": "Peso",
+          "value": "185.9 g",
+          "unit": "g",
+          "confidence": 0.95,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Construcao",
+          "key": "ip_rating",
+          "displayName": "Resistencia",
+          "value": "IP68",
+          "confidence": 0.96,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        },
+        {
+          "group": "Software",
+          "key": "os",
+          "displayName": "Sistema",
+          "value": "Android 15",
+          "confidence": 0.95,
+          "sourceUrl": "https://support.google.com/pixelphone/answer/7158570?hl=en"
+        }
+      ],
+      "variants": [
+        {
+          "name": "8 GB / 128 GB",
+          "ramGb": 8,
+          "storageGb": 128
+        },
+        {
+          "name": "8 GB / 256 GB",
+          "ramGb": 8,
+          "storageGb": 256
+        }
+      ],
+      "benchmarks": [
+        {
+          "benchmarkName": "AnTuTu 11",
+          "score": 1321069,
+          "sourceName": "NanoReview",
+          "sourceUrl": "https://nanoreview.net/en/phone/google-pixel-9a"
+        }
+      ]
+    },
+    {
+      "sourceName": "Nothing",
+      "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro",
+      "policyStatus": "ManualFeed",
+      "robotsAllowed": true,
+      "isOfficial": true,
+      "brandName": "Nothing",
+      "officialDomain": "nothing.tech",
+      "modelName": "Phone (3a) Pro",
+      "summary": "Intermediario premium com design marcante, periscopio raro na faixa e foco grande em usabilidade.",
+      "releasedAt": "2025-03-04T00:00:00Z",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0585/2479/5086/files/ArcPro1352x1352-Black-Glyphon.png?v=1740649983",
+      "imageSourceUrl": "https://intl.nothing.tech/products/phone-3a-pro",
+      "specs": [
+        {
+          "group": "Performance",
+          "key": "chipset",
+          "displayName": "Chipset",
+          "value": "Snapdragon 7s Gen 3",
+          "isCritical": true,
+          "confidence": 0.97,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Memoria",
+          "key": "ram",
+          "displayName": "RAM",
+          "value": "12 GB",
+          "unit": "GB",
+          "isCritical": true,
+          "confidence": 0.95,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Armazenamento",
+          "key": "storage_base",
+          "displayName": "Armazenamento base",
+          "value": "256 GB",
+          "unit": "GB",
+          "confidence": 0.95,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Tela",
+          "key": "display_size",
+          "displayName": "Tamanho da tela",
+          "value": "6.77 in",
+          "unit": "in",
+          "isCritical": true,
+          "confidence": 0.96,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Tela",
+          "key": "display_type",
+          "displayName": "Painel",
+          "value": "AMOLED",
+          "confidence": 0.95,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Tela",
+          "key": "resolution",
+          "displayName": "Resolucao",
+          "value": "2392 x 1080",
+          "confidence": 0.94,
+          "sourceUrl": "https://support.nothing.tech/hc/en-us/articles/33045865591697-What-are-the-screen-specifications-of-the-Phone"
+        },
+        {
+          "group": "Tela",
+          "key": "refresh_rate",
+          "displayName": "Taxa de atualizacao",
+          "value": "120 Hz",
+          "unit": "Hz",
+          "confidence": 0.95,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Camera",
+          "key": "main_camera",
+          "displayName": "Camera principal",
+          "value": "50 MP",
+          "unit": "MP",
+          "isCritical": true,
+          "confidence": 0.96,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Camera",
+          "key": "ultrawide_camera",
+          "displayName": "Ultra-wide",
+          "value": "8 MP",
+          "unit": "MP",
+          "confidence": 0.93,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Camera",
+          "key": "telephoto_camera",
+          "displayName": "Teleobjetiva",
+          "value": "50 MP periscopio",
+          "unit": "MP",
+          "confidence": 0.95,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Camera",
+          "key": "selfie_camera",
+          "displayName": "Camera frontal",
+          "value": "50 MP",
+          "unit": "MP",
+          "confidence": 0.94,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Bateria",
+          "key": "battery",
+          "displayName": "Bateria",
+          "value": "5000 mAh",
+          "unit": "mAh",
+          "isCritical": true,
+          "confidence": 0.96,
+          "sourceUrl": "https://support.nothing.tech/hc/en-us/articles/33045883084945-What-is-the-battery-capacity-of-the-Phone-and-how-long-does-it-take-to-charge"
+        },
+        {
+          "group": "Bateria",
+          "key": "charging",
+          "displayName": "Carregamento",
+          "value": "50 W",
+          "unit": "W",
+          "isCritical": true,
+          "confidence": 0.93,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Bateria",
+          "key": "wireless_charging",
+          "displayName": "Carregamento sem fio",
+          "value": "Nao suporta",
+          "confidence": 0.95,
+          "sourceUrl": "https://support.nothing.tech/hc/en-us/articles/33045835772689-Does-the-Phone-support-wireless-charging"
+        },
+        {
+          "group": "Construcao",
+          "key": "ip_rating",
+          "displayName": "Resistencia",
+          "value": "IP64",
+          "confidence": 0.95,
+          "sourceUrl": "https://intl.nothing.tech/products/phone-3a-pro"
+        },
+        {
+          "group": "Software",
+          "key": "os",
+          "displayName": "Sistema",
+          "value": "Nothing OS 3.1 com Android 15",
+          "confidence": 0.95,
+          "sourceUrl": "https://support.nothing.tech/hc/en-us/articles/33045876803601-What-operating-system-does-the-Phone-use"
+        }
+      ],
+      "variants": [
+        {
+          "name": "12 GB / 256 GB",
+          "ramGb": 12,
+          "storageGb": 256
+        }
+      ]
+    }
+  ]
+}

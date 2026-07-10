@@ -10,5 +10,5 @@ coverage/
 .playwright-cli/
 .railway/
 .config/
-Data/
-output/
+/Data/
+/output/

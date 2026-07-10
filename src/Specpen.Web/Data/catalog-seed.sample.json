@@ -1,0 +1,52 @@
+{
+  "phones": [
+    {
+      "sourceName": "Catalog seed",
+      "sourceUrl": "https://seed.example.test/brand/model",
+      "policyStatus": "ManualFeed",
+      "robotsAllowed": true,
+      "isOfficial": false,
+      "brandName": "Marca",
+      "officialDomain": "brand.example",
+      "modelName": "Modelo",
+      "summary": "Resumo curto da ficha externa.",
+      "releasedAt": "2025-01-01T00:00:00Z",
+      "launchPriceUsd": 799,
+      "imageUrl": "https://seed.example.test/images/model.png",
+      "imageSourceUrl": "https://seed.example.test/brand/model",
+      "specs": [
+        {
+          "group": "Performance",
+          "key": "chipset",
+          "displayName": "Chipset",
+          "value": "Snapdragon 8 Elite",
+          "isCritical": true,
+          "confidence": 0.95
+        },
+        {
+          "group": "Bateria",
+          "key": "battery",
+          "displayName": "Bateria",
+          "value": "5000 mAh",
+          "unit": "mAh",
+          "isCritical": true,
+          "confidence": 0.92
+        }
+      ],
+      "variants": [
+        {
+          "name": "12 GB / 256 GB",
+          "ramGb": 12,
+          "storageGb": 256
+        }
+      ],
+      "benchmarks": [
+        {
+          "benchmarkName": "AnTuTu",
+          "score": 2200000,
+          "sourceName": "Benchmark feed"
+        }
+      ]
+    }
+  ]
+}
