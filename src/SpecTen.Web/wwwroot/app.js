@@ -106,8 +106,30 @@ window.spectenSearchInput = {
             window.clearTimeout(debounceHandle);
             debounceHandle = window.setTimeout(notify, delayMilliseconds);
         };
+        const onBlur = () => {
+            window.clearTimeout(debounceHandle);
+            debounceHandle = undefined;
+            dotNetReference.invokeMethodAsync("OnSearchBlur", input.value);
+        };
+        const onKeyDown = (event) => {
+            if (![
+                "ArrowDown",
+                "ArrowUp",
+                "Escape",
+                "Enter"
+            ].includes(event.key)) {
+                return;
+            }
+
+            event.preventDefault();
+            window.clearTimeout(debounceHandle);
+            debounceHandle = undefined;
+            dotNetReference.invokeMethodAsync("OnSearchKey", event.key, input.value);
+        };
 
         input.addEventListener("input", onInput);
+        input.addEventListener("blur", onBlur);
+        input.addEventListener("keydown", onKeyDown);
         input.dataset.spectenSearchConnected = "true";
     }
 };

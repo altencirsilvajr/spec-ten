@@ -29,9 +29,6 @@
                 <input id="catalog-search"
                        @ref="SearchInputElement"
                        value="@SearchText"
-                       @onfocus="OnSearchFocused"
-                       @onblur="OnSearchBlur"
-                       @onkeydown="OnSearchKeyDown"
                        autocomplete="off"
                        autocapitalize="off"
                        autocorrect="off"
@@ -747,21 +744,24 @@ else
         StartSearchRefresh();
     }
 
-    private Task OnSearchFocused(FocusEventArgs _)
+    [JSInvokable]
+    public async Task OnSearchBlur(string searchText)
     {
-        OpenSuggestionPanel();
-        StartSearchRefresh();
-        return Task.CompletedTask;
-    }
+        SearchText = searchText;
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            OpenSuggestionPanel();
+            StartSearchRefresh();
+        }
 
-    private async Task OnSearchBlur(FocusEventArgs _)
-    {
         await CloseSuggestionPanelAfterDelayAsync();
     }
 
-    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    [JSInvokable]
+    public async Task OnSearchKey(string key, string searchText)
     {
-        switch (args.Key)
+        SearchText = searchText;
+        switch (key)
         {
             case "ArrowDown":
                 MoveActiveSuggestion(1);
