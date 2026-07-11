@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject CatalogService CatalogService
 @inject CompareSelectionState CompareSelection
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
 
 <PageTitle>Catalogo de celulares</PageTitle>
@@ -41,10 +42,15 @@
                        aria-controls="catalog-suggestions"
                        aria-activedescendant="@ActiveSuggestionId"
                        placeholder="Xiaomi 15T Pro, Galaxy A56, A18 Pro..." />
-                <button class="button primary" type="button" @onclick="ApplyFiltersAndFocusResultsAsync">Ir para resultados</button>
+                <button class="button primary"
+                        type="button"
+                        disabled="@IsApplyingFilters"
+                        @onclick="ApplyFiltersAndFocusResultsAsync">
+                    @(IsApplyingFilters ? "Buscando..." : "Ir para resultados")
+                </button>
             </div>
 
-            <div class="search-assist-strip @SearchAssistTone" aria-live="polite">
+            <div class="search-assist-strip @SearchAssistTone" role="status" aria-live="polite">
                 <strong>@SearchAssistTitle</strong>
                 <span>@SearchAssistMessage</span>
             </div>
@@ -145,7 +151,11 @@
     </nav>
 }
 
-<section id="catalog-results" class="catalog-summary-line" aria-live="polite">
+<section id="catalog-results"
+         class="catalog-summary-line"
+         tabindex="-1"
+         aria-busy="@IsCatalogBusy"
+         aria-live="polite">
     <div>
         <strong>@ResultHeading</strong>
         <span>@ResultDescription</span>
@@ -607,6 +617,8 @@ else
     private string SelectedSortKey { get; set; } = "auto";
     private int ActiveSuggestionIndex { get; set; } = -1;
     private bool IsSearchRefreshing { get; set; }
+    private bool IsApplyingFilters { get; set; }
+    private bool _shouldFocusCatalogResults;
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _suggestionCloseCts;
     private long _searchRefreshVersion;
@@ -614,6 +626,7 @@ else
     private bool IsMobileFiltersOpen { get; set; }
 
     private bool HasSuggestions => IsSuggestionPanelOpen && Suggestions.Count > 0 && !string.IsNullOrWhiteSpace(SearchText);
+    private bool IsCatalogBusy => IsSearchRefreshing || IsApplyingFilters;
     private bool CanCompare => CompareSelection.Count is >= 2 and <= 4;
     private int SuggestionOptionCount => HasSuggestions ? Suggestions.Count + 1 : 0;
     private string? ActiveSuggestionId => ActiveSuggestionIndex >= 0 ? SuggestionId(ActiveSuggestionIndex) : null;
@@ -692,6 +705,12 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_shouldFocusCatalogResults)
+        {
+            _shouldFocusCatalogResults = false;
+            await JS.InvokeVoidAsync("spectenViewport.focusAndScrollTo", CatalogResultsFragment);
+        }
+
         if (!firstRender)
         {
             return;
@@ -899,8 +918,21 @@ else
         IsMobileFiltersOpen = false;
         Suggestions = [];
         ActiveSuggestionIndex = -1;
-        SyncFilterUrl("catalog-results");
-        await Task.CompletedTask;
+        CloseSuggestionPanel();
+        IsApplyingFilters = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await RefreshCatalogAsync(CancellationToken.None);
+            _shouldFocusCatalogResults = true;
+            SyncFilterUrl();
+        }
+        finally
+        {
+            IsApplyingFilters = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void SyncFilterUrl(string? fragment = null)
@@ -1259,6 +1291,14 @@ else
 
     private SearchAssistViewModel BuildSearchAssist()
     {
+        if (IsApplyingFilters)
+        {
+            return new SearchAssistViewModel(
+                "Buscando modelo",
+                $"Consultando o catalogo e a cobertura para \"{SearchText}\". Aguarde um instante.",
+                "loading");
+        }
+
         if (IsSearchRefreshing)
         {
             return new SearchAssistViewModel(

@@ -27,15 +27,26 @@
     </div>
 </section>
 
+@if (IsComparisonUpdating)
+{
+    <section class="operation-status compare-operation-status" role="status" aria-live="assertive">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <div>
+            <strong>@ComparisonOperationTitle</strong>
+            <span>@ComparisonOperationMessage</span>
+        </div>
+    </section>
+}
+
 @if (CanRenderComparisonTable)
 {
-    <section class="compare-ready-bar" aria-label="Comparacao pronta">
+    <section class="compare-ready-bar" aria-label="Comparacao pronta" aria-busy="@IsComparisonBusy">
         <div class="compare-ready-copy">
             <strong>@Comparison.Phones.Count modelos prontos</strong>
             <span>@VisibleRows.Count specs visiveis no recorte atual</span>
         </div>
         <div class="compare-ready-actions">
-            <button class="button subtle compact" type="button" @onclick="ToggleBuilder">
+            <button class="button subtle compact" type="button" disabled="@IsComparisonUpdating" @onclick="ToggleBuilder">
                 @(IsBuilderExpanded ? "Fechar edicao" : "Trocar modelos")
             </button>
             <a class="button primary compact" href="#compare-results-shell">Ir para tabela</a>
@@ -45,7 +56,7 @@
 
 @if (!CanRenderComparisonTable || IsBuilderExpanded)
 {
-    <section class="compare-builder">
+    <section class="compare-builder" aria-busy="@IsComparisonBusy">
         <div class="toolbar-search">
             <label for="compare-search">Buscar e adicionar modelos</label>
             <div class="search-input-shell">
@@ -65,11 +76,12 @@
                        aria-expanded="@(HasSuggestions ? "true" : "false")"
                        aria-controls="compare-suggestions"
                        aria-activedescendant="@ActiveSuggestionId"
+                       disabled="@IsComparisonUpdating"
                        placeholder="Ex.: Xiaomi 15T Pro, Galaxy A56, iPhone 16 Pro..." />
-                <button class="button subtle" type="button" @onclick="ClearSelection" disabled="@(Comparison.Phones.Count == 0)">Limpar comparacao</button>
+                <button class="button subtle" type="button" @onclick="ClearSelection" disabled="@(Comparison.Phones.Count == 0 || IsComparisonUpdating)">Limpar comparacao</button>
             </div>
 
-            <div class="search-assist-strip @SearchAssistTone" aria-live="polite">
+            <div class="search-assist-strip @SearchAssistTone" role="status" aria-live="polite">
                 <strong>@SearchAssistTitle</strong>
                 <span>@SearchAssistMessage</span>
             </div>
@@ -88,7 +100,7 @@
                                 role="option"
                                 aria-selected="@isActive"
                                 type="button"
-                                disabled="@limitReached"
+                                disabled="@(limitReached || IsComparisonUpdating)"
                                 @onclick="() => ActivateSuggestionAsync(option)">
                             <span class="suggestion-title">@suggestion.FullName</span>
                             <span class="suggestion-meta">
@@ -136,7 +148,7 @@
                 <div class="selected-chip-list">
                     @foreach (var phone in Comparison.Phones)
                     {
-                        <button class="selected-chip" type="button" @onclick="() => RemovePhoneAsync(phone.Id)">
+                        <button class="selected-chip" type="button" disabled="@IsComparisonUpdating" @onclick="() => RemovePhoneAsync(phone.Id)">
                             <span>@phone.FullName</span>
                             <span aria-hidden="true">x</span>
                         </button>
@@ -157,6 +169,7 @@
             {
                 <button class="jump-chip quick-start-chip"
                         type="button"
+                        disabled="@IsComparisonUpdating"
                         @onclick="() => AddQuickStartPhoneAsync(phone)">
                     <span>@phone.FullName</span>
                     <span>@phone.Tier</span>
@@ -332,7 +345,7 @@ else
 
                     <div class="card-actions">
                         <a class="button subtle" href="/celulares/@phone.BrandSlug/@phone.Slug">Abrir ficha completa</a>
-                        <button class="button subtle" type="button" @onclick="() => RemovePhoneAsync(phone.Id)">Remover</button>
+                        <button class="button subtle" type="button" disabled="@IsComparisonUpdating" @onclick="() => RemovePhoneAsync(phone.Id)">Remover</button>
                     </div>
                 </div>
             </article>
@@ -479,6 +492,9 @@ else
     private bool OnlyDifferences { get; set; }
     private int ActiveSuggestionIndex { get; set; } = -1;
     private bool IsSearchRefreshing { get; set; }
+    private bool IsComparisonUpdating { get; set; }
+    private string ComparisonOperationTitle { get; set; } = "Atualizando comparacao";
+    private string ComparisonOperationMessage { get; set; } = "Organizando as fichas selecionadas. Aguarde um instante.";
     private bool HasRequestedIds { get; set; }
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _suggestionCloseCts;
@@ -497,6 +513,7 @@ else
     private IReadOnlyList<CompareHighlightViewModel> ComparisonHighlights => BuildComparisonHighlights(VisibleRows);
 
     private bool CanRenderComparisonTable => Comparison.Phones.Count >= 2;
+    private bool IsComparisonBusy => IsSearchRefreshing || IsComparisonUpdating;
     private bool HasVisibleRows => VisibleRows.Count > 0;
     private bool HasMissingSpecs => VisibleRows.Any(row => row.Values.Values.Contains("-", StringComparer.OrdinalIgnoreCase));
     private bool HasSuggestions => IsSuggestionPanelOpen && SuggestionOptions.Count > 0;
@@ -670,69 +687,113 @@ else
 
     private async Task AddSuggestionAsync(PhoneSuggestionDto suggestion)
     {
-        if (SelectedIds.Contains(suggestion.Id) || SelectedIds.Count >= 4)
+        if (IsComparisonUpdating || SelectedIds.Contains(suggestion.Id) || SelectedIds.Count >= 4)
         {
             return;
         }
 
-        CancelPendingSearchRefresh(clearBusyState: true);
-        SelectedIds.Add(suggestion.Id);
-        SearchText = "";
-        Suggestions = [];
-        ActiveSuggestionIndex = -1;
-        CloseSuggestionPanel();
-        await LoadComparisonAsync();
-        Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+        await UpdateComparisonAsync(
+            "Adicionando modelo ao comparador",
+            $"Montando a comparacao com {suggestion.FullName}. Aguarde um instante.",
+            async () =>
+            {
+                CancelPendingSearchRefresh(clearBusyState: true);
+                SelectedIds.Add(suggestion.Id);
+                SearchText = "";
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                CloseSuggestionPanel();
+                await LoadComparisonAsync();
+                Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+            });
     }
 
     private async Task AddQuickStartPhoneAsync(PhoneSearchResult phone)
     {
-        if (!phone.HasFullCatalogEntry || SelectedIds.Contains(phone.Id) || SelectedIds.Count >= 4)
+        if (IsComparisonUpdating || !phone.HasFullCatalogEntry || SelectedIds.Contains(phone.Id) || SelectedIds.Count >= 4)
         {
             return;
         }
 
-        CancelPendingSearchRefresh(clearBusyState: true);
-        SelectedIds.Add(phone.Id);
-        SearchText = "";
-        Suggestions = [];
-        ActiveSuggestionIndex = -1;
-        CloseSuggestionPanel();
-        await LoadComparisonAsync();
-        Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+        await UpdateComparisonAsync(
+            "Adicionando modelo ao comparador",
+            $"Carregando as especificacoes de {phone.FullName}. Aguarde um instante.",
+            async () =>
+            {
+                CancelPendingSearchRefresh(clearBusyState: true);
+                SelectedIds.Add(phone.Id);
+                SearchText = "";
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                CloseSuggestionPanel();
+                await LoadComparisonAsync();
+                Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+            });
     }
 
     private async Task RemovePhoneAsync(int phoneId)
     {
-        if (!SelectedIds.Remove(phoneId))
+        if (IsComparisonUpdating || !SelectedIds.Contains(phoneId))
         {
             return;
         }
 
-        CancelPendingSearchRefresh(clearBusyState: true);
-        Suggestions = [];
-        ActiveSuggestionIndex = -1;
-        CloseSuggestionPanel();
-        await LoadComparisonAsync();
-        Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+        var phoneName = Comparison.Phones.FirstOrDefault(phone => phone.Id == phoneId)?.FullName ?? "o modelo";
+        await UpdateComparisonAsync(
+            "Atualizando comparacao",
+            $"Removendo {phoneName} e recalculando as diferencas.",
+            async () =>
+            {
+                SelectedIds.Remove(phoneId);
+                CancelPendingSearchRefresh(clearBusyState: true);
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                CloseSuggestionPanel();
+                await LoadComparisonAsync();
+                Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+            });
     }
 
     private async Task ClearSelection()
     {
-        if (SelectedIds.Count == 0)
+        if (IsComparisonUpdating || SelectedIds.Count == 0)
         {
             return;
         }
 
-        CancelPendingSearchRefresh(clearBusyState: true);
-        SelectedIds.Clear();
-        SearchText = "";
-        Suggestions = [];
-        ActiveSuggestionIndex = -1;
-        OnlyDifferences = false;
-        CloseSuggestionPanel();
-        await LoadComparisonAsync();
-        Navigation.NavigateTo("/comparar", replace: true);
+        await UpdateComparisonAsync(
+            "Limpando comparacao",
+            "Removendo os modelos selecionados e preparando uma nova escolha.",
+            async () =>
+            {
+                CancelPendingSearchRefresh(clearBusyState: true);
+                SelectedIds.Clear();
+                SearchText = "";
+                Suggestions = [];
+                ActiveSuggestionIndex = -1;
+                OnlyDifferences = false;
+                CloseSuggestionPanel();
+                await LoadComparisonAsync();
+                Navigation.NavigateTo("/comparar", replace: true);
+            });
+    }
+
+    private async Task UpdateComparisonAsync(string title, string message, Func<Task> update)
+    {
+        IsComparisonUpdating = true;
+        ComparisonOperationTitle = title;
+        ComparisonOperationMessage = message;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await update();
+        }
+        finally
+        {
+            IsComparisonUpdating = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void ToggleBuilder()
@@ -802,6 +863,11 @@ else
 
     private async Task ActivateSuggestionAsync(CompareSuggestionOption option)
     {
+        if (IsComparisonUpdating)
+        {
+            return;
+        }
+
         CancelPendingSearchRefresh(clearBusyState: true);
         if (option.Suggestion.IsPublicReady)
         {
@@ -814,34 +880,35 @@ else
             return;
         }
 
-        IsSearchRefreshing = true;
-        await InvokeAsync(StateHasChanged);
-
-        try
-        {
-            var hydratedPhone = await Catalog.GetPhoneBySlugAsync(option.Suggestion.BrandSlug, option.Suggestion.Slug, CancellationToken.None);
-            if (hydratedPhone is not null && hydratedPhone.IsPublicReady && !SelectedIds.Contains(hydratedPhone.Id))
+        var shouldOpenDetails = false;
+        await UpdateComparisonAsync(
+            "Carregando ficha para comparar",
+            $"Buscando as especificacoes de {option.Suggestion.FullName}. Isso pode levar alguns segundos.",
+            async () =>
             {
-                SelectedIds.Add(hydratedPhone.Id);
-                SearchText = "";
+                var hydratedPhone = await Catalog.GetPhoneBySlugAsync(option.Suggestion.BrandSlug, option.Suggestion.Slug, CancellationToken.None);
+                if (hydratedPhone is not null && hydratedPhone.IsPublicReady && !SelectedIds.Contains(hydratedPhone.Id))
+                {
+                    SelectedIds.Add(hydratedPhone.Id);
+                    SearchText = "";
+                    Suggestions = [];
+                    ActiveSuggestionIndex = -1;
+                    CloseSuggestionPanel();
+                    await LoadComparisonAsync();
+                    Navigation.NavigateTo(BuildCompareUrl(), replace: true);
+                    return;
+                }
+
                 Suggestions = [];
                 ActiveSuggestionIndex = -1;
                 CloseSuggestionPanel();
-                await LoadComparisonAsync();
-                Navigation.NavigateTo(BuildCompareUrl(), replace: true);
-                return;
-            }
-        }
-        finally
-        {
-            IsSearchRefreshing = false;
-            await InvokeAsync(StateHasChanged);
-        }
+                shouldOpenDetails = true;
+            });
 
-        Suggestions = [];
-        ActiveSuggestionIndex = -1;
-        CloseSuggestionPanel();
-        Navigation.NavigateTo($"/celulares/{option.Suggestion.BrandSlug}/{option.Suggestion.Slug}");
+        if (shouldOpenDetails)
+        {
+            Navigation.NavigateTo($"/celulares/{option.Suggestion.BrandSlug}/{option.Suggestion.Slug}");
+        }
     }
 
     private void MoveActiveSuggestion(int step)

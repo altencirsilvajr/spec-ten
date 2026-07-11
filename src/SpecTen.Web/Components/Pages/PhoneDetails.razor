@@ -3,11 +3,22 @@
 @inject CatalogService Catalog
 @inject CompareSelectionState CompareSelection
 @inject RecentlyViewedState RecentlyViewed
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
 
 <PageTitle>@(Phone?.FullName ?? "Aparelho")</PageTitle>
 
-@if (Phone is null)
+@if (IsLoadingPhone)
+{
+    <section class="operation-status detail-loading" role="status" aria-live="assertive" aria-busy="true">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <div>
+            <strong>Carregando ficha do aparelho</strong>
+            <span>Estamos consultando os dados e as especificacoes publicadas. Aguarde um instante.</span>
+        </div>
+    </section>
+}
+else if (Phone is null)
 {
     <section class="empty-state">
         <h1>Aparelho nao encontrado</h1>
@@ -48,7 +59,7 @@ else
         </div>
         <div class="phone-summary">
             <p class="eyebrow">@Phone.DisplayBrand</p>
-            <h1 class="page-title">@Phone.FullName</h1>
+            <h1 id="phone-page-heading" class="page-title" tabindex="-1">@Phone.FullName</h1>
             <p>@Phone.Summary</p>
             <div class="summary-meta">
                 @if (Phone.HasFullCatalogEntry)
@@ -449,6 +460,8 @@ else
     private PhoneDetailsDto? Phone { get; set; }
     private IReadOnlyList<SpecFactDto> QuickSpecs { get; set; } = [];
     private IReadOnlyList<PhoneSearchResult> RelatedPhones { get; set; } = [];
+    private bool IsLoadingPhone { get; set; } = true;
+    private bool _shouldFocusLoadedPhone;
     private int? LastTrackedPhoneId { get; set; }
     private string SpecFilterText { get; set; } = "";
     private bool OnlyReviewSpecs { get; set; }
@@ -528,6 +541,26 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        IsLoadingPhone = true;
+        Phone = null;
+        QuickSpecs = [];
+        RelatedPhones = [];
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await LoadPhoneAsync();
+            _shouldFocusLoadedPhone = Phone is not null;
+        }
+        finally
+        {
+            IsLoadingPhone = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadPhoneAsync()
+    {
         Phone = await Catalog.GetPhoneBySlugAsync(Marca, Slug, CancellationToken.None);
         SpecFilterText = "";
         OnlyReviewSpecs = false;
@@ -557,6 +590,12 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_shouldFocusLoadedPhone)
+        {
+            _shouldFocusLoadedPhone = false;
+            await JS.InvokeVoidAsync("spectenViewport.focusAndScrollTo", "phone-page-heading");
+        }
+
         var phoneToTrack = Phone;
         var shouldTrackView = phoneToTrack is not null && phoneToTrack.Id != LastTrackedPhoneId;
         var compareSelectionChanged = false;

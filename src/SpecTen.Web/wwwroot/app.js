@@ -77,3 +77,15 @@ window.spectenRecentlyViewed = {
         }
     }
 };
+
+window.spectenViewport = {
+    focusAndScrollTo(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) {
+            return;
+        }
+
+        element.focus({ preventScroll: true });
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+};
