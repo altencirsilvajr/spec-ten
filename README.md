@@ -66,6 +66,24 @@ O projeto nao contem chaves de API, tokens ou segredos. Por padrao, ele roda ape
 
 Os selos automáticos descrevem **desempenho estimado** — basico, equilibrado ou muito alto — a partir de chipset e benchmarks. Eles nao sao uma declaracao de segmento comercial. Quando o catalogo exibe um segmento como “intermediario premium”, ele vem de uma pequena curadoria versionada e fica separado do desempenho. A pagina `/metodologia` explica fontes, confianca e limites dos benchmarks.
 
+## Evidencia da ultima versao publicada
+
+Validado em 11/07/2026 no ambiente de producao:
+
+- `GET /health` respondeu `200` com o PostgreSQL alcancavel.
+- `GET /api/search?query=poco%20x8%20pro` retornou `Desempenho muito alto` como desempenho e `Intermediario premium` como segmento comercial.
+- `GET /metodologia` respondeu `200` e exibiu a explicacao dos limites da classificacao.
+
+![Ficha do POCO X8 Pro em producao](docs/evidence/poco-x8-pro-production.png)
+
+![Metodologia em producao](docs/evidence/metodologia-production.png)
+
+## Pesquisa local e credenciais
+
+O modo local padrao nao usa API key nem token do autor. Ele inicia com o seed versionado em `Data/catalog-seed.json`, grava as fichas no PostgreSQL configurado pelo proprio usuario e deixa `Coverage:Enabled` e `Coverage:OnDemandHydrationEnabled` desativados.
+
+Assim, um fork nao faz chamadas externas automaticamente. Se alguem quiser criar um provider que exija credencial, a chave deve ser fornecida por variavel de ambiente ou secret do proprio ambiente — nunca adicionada ao codigo ou ao README. Os providers atuais de cobertura publica nao exigem API key; eles so devem ser ativados conscientemente por quem estiver rodando a instancia.
+
 ## Fontes
 
 O catalogo usa cobertura versionada para descoberta e provedores oficiais para enriquecimento sob demanda. Adapters de terceiros permanecem como fixtures enquanto permissao de uso, robots, limite de taxa e politica de imagens nao estiverem aprovados para execucao automatica.
