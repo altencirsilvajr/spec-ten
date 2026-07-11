@@ -697,9 +697,9 @@ public sealed class PhoneClassifier
     {
         return tier switch
         {
-            ClassificationTier.Entry => "Entrada",
-            ClassificationTier.MidRange => "Intermediario",
-            ClassificationTier.Flagship => "Top de linha",
+            ClassificationTier.Entry => "Desempenho basico",
+            ClassificationTier.MidRange => "Desempenho equilibrado",
+            ClassificationTier.Flagship => "Desempenho muito alto",
             _ => "Indefinido",
         };
     }

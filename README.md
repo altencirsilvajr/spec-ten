@@ -26,7 +26,7 @@ dotnet test
 dotnet run --project src/SpecTen.Web
 ```
 
-O ambiente de desenvolvimento pode usar adapters de fixture. O perfil de producao os mantem desligados e usa o seed versionado, cobertura sob demanda e fontes oficiais habilitadas.
+O ambiente de desenvolvimento pode usar adapters de fixture. Por seguranca, a configuracao versionada inicia somente com o seed local: cobertura remota e hidratacao sob demanda ficam desligadas ate que quem fizer o fork as habilite conscientemente.
 
 ## Railway
 
@@ -57,6 +57,14 @@ O fluxo publico recomendado para o SpecTen fica assim:
 - O cache local so acelera leitura. Ele nao decide verdade de dados e eh limpo apos importacoes e hidratacoes relevantes.
 
 Redis faz sentido quando voce tiver mais de uma instancia web ou muito trafego de busca. Nessa fase ele entra para compartilhar cache quente entre instancias e reduzir repeticao de consultas externas. Ele nao substitui o banco nem a logica de proveniencia.
+
+## Uso local e fontes remotas
+
+O projeto nao contem chaves de API, tokens ou segredos. Por padrao, ele roda apenas com `Data/catalog-seed.json` e nao faz chamadas de descoberta/hidratacao remota. Quem fizer um fork e quiser ativar cobertura externa deve definir explicitamente `Coverage__Enabled=true` e `Coverage__OnDemandHydrationEnabled=true`, revisar permissao, `robots.txt` e limites da fonte escolhida.
+
+## Metodologia de classificacao
+
+Os selos automáticos descrevem **desempenho estimado** — basico, equilibrado ou muito alto — a partir de chipset e benchmarks. Eles nao sao uma declaracao de segmento comercial. Quando o catalogo exibe um segmento como “intermediario premium”, ele vem de uma pequena curadoria versionada e fica separado do desempenho. A pagina `/metodologia` explica fontes, confianca e limites dos benchmarks.
 
 ## Fontes
 

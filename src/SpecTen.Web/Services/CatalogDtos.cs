@@ -26,7 +26,8 @@ public sealed record PhoneSearchResult(
     string ReadinessNote,
     int SourceCount,
     bool HasOfficialSource,
-    DateTimeOffset? UpdatedAt)
+    DateTimeOffset? UpdatedAt,
+    string? CommercialSegment = null)
 {
     public string DisplayBrand => PhoneNameFormatter.DisplayBrand(Brand, Name);
     public string FullName => PhoneNameFormatter.FullName(Brand, Name);
@@ -37,7 +38,7 @@ public sealed record PhoneSearchResult(
         : IsPublicReady
             ? "Ficha completa"
             : "Ficha parcial";
-    public string PrimaryBadgeLabel => IsPublicReady ? Tier : StateLabel;
+    public string PrimaryBadgeLabel => IsPublicReady ? CommercialSegment ?? Tier : StateLabel;
 }
 
 public sealed record PhoneSuggestionDto(
@@ -50,7 +51,8 @@ public sealed record PhoneSuggestionDto(
     string? Chipset,
     DateTimeOffset? ReleasedAt,
     bool HasFullCatalogEntry,
-    bool IsPublicReady)
+    bool IsPublicReady,
+    string? CommercialSegment = null)
 {
     public string DisplayBrand => PhoneNameFormatter.DisplayBrand(Brand, Name);
     public string FullName => PhoneNameFormatter.FullName(Brand, Name);
@@ -61,7 +63,7 @@ public sealed record PhoneSuggestionDto(
         : IsPublicReady
             ? "Ficha completa"
             : "Ficha parcial";
-    public string PrimaryBadgeLabel => IsPublicReady ? Tier : StateLabel;
+    public string PrimaryBadgeLabel => IsPublicReady ? CommercialSegment ?? Tier : StateLabel;
 }
 
 public sealed record CatalogBrandOptionDto(string Name, string Slug, int Count);
@@ -101,7 +103,8 @@ public sealed record PhoneDetailsDto(
     string? AvailabilityNote,
     string? DiscoverySourceName,
     string? DiscoverySourceUrl,
-    DateTimeOffset? UpdatedAt)
+    DateTimeOffset? UpdatedAt,
+    string? CommercialSegment = null)
 {
     public string DisplayBrand => PhoneNameFormatter.DisplayBrand(Brand, Name);
     public string FullName => PhoneNameFormatter.FullName(Brand, Name);
@@ -112,7 +115,7 @@ public sealed record PhoneDetailsDto(
         : IsPublicReady
             ? "Ficha completa"
             : "Ficha parcial";
-    public string PrimaryBadgeLabel => IsPublicReady ? Classification.Label : StateLabel;
+    public string PrimaryBadgeLabel => IsPublicReady ? CommercialSegment ?? Classification.Label : StateLabel;
 }
 
 public sealed record PhoneVariantDto(string Name, int? RamGb, int? StorageGb, string? Color);

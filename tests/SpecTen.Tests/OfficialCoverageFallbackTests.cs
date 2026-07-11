@@ -34,7 +34,7 @@ public sealed class OfficialCoverageFallbackTests
             phone.HasFullCatalogEntry);
 
         Assert.Equal(results[0].Id, match.Id);
-        Assert.Equal("Top de linha", match.Tier);
+        Assert.Equal("Desempenho muito alto", match.Tier);
         Assert.Equal("Snapdragon 8 Elite Gen 5", match.Chipset);
         Assert.Equal("6600 mAh", match.Battery);
         Assert.Equal("6.82 in", match.Display);
@@ -173,7 +173,7 @@ public sealed class OfficialCoverageFallbackTests
 
         Assert.Equal("Fonte oficial", match.TrustLabel);
         Assert.Equal("Galaxy A37 5G", match.Name);
-        Assert.Equal("Intermediario", match.Tier);
+        Assert.Equal("Desempenho equilibrado", match.Tier);
         Assert.Equal("Exynos 1580 (4 nm)", match.Chipset);
         Assert.Equal("5000 mAh", match.Battery);
         Assert.Equal("6.7 in", match.Display);
@@ -223,7 +223,7 @@ public sealed class OfficialCoverageFallbackTests
             phone.HasFullCatalogEntry);
 
         Assert.Equal("Exynos 1680", match.Chipset);
-        Assert.Equal("Intermediario", match.Tier);
+        Assert.Equal("Desempenho equilibrado", match.Tier);
 
         var details = await harness.Catalog.GetPhoneBySlugAsync("samsung", "galaxy-a57-5g", CancellationToken.None);
 
@@ -260,14 +260,14 @@ public sealed class OfficialCoverageFallbackTests
             phone.HasFullCatalogEntry);
 
         Assert.Equal("Galaxy A37 5G", refreshed.Name);
-        Assert.Equal("Intermediario", refreshed.Tier);
+        Assert.Equal("Desempenho equilibrado", refreshed.Tier);
         Assert.DoesNotContain(results, phone => phone.Slug == "galaxy-a37-5g-128gb");
 
         var details = await harness.Catalog.GetPhoneBySlugAsync("samsung", "galaxy-a37-5g", CancellationToken.None);
 
         Assert.NotNull(details);
         Assert.Equal("Samsung Galaxy A37 5G", details!.FullName);
-        Assert.Equal("Intermediario", details.Classification.Label);
+        Assert.Equal("Desempenho equilibrado", details.Classification.Label);
     }
 
     [Fact]

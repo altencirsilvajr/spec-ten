@@ -1174,6 +1174,47 @@ main {
     border-color: #bad9d4;
 }
 
+.subtle-tier {
+    background: var(--surface-2);
+    color: var(--muted);
+}
+
+.methodology-page {
+    max-width: 980px;
+    margin-inline: auto;
+}
+
+.methodology-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.methodology-grid article,
+.methodology-callout {
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.methodology-grid h2,
+.methodology-callout h2 {
+    margin-top: 0;
+}
+
+.methodology-callout {
+    display: grid;
+    gap: .8rem;
+}
+
+@media (max-width: 640px) {
+    .methodology-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .phone-card-media {
     display: grid;
     place-items: center;

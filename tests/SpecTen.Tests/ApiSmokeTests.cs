@@ -44,7 +44,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
         Assert.NotNull(results);
         var phone = results!.First();
         Assert.Equal("Xiaomi 15T Pro", phone.Name);
-        Assert.Equal("Top de linha", phone.Tier);
+        Assert.Equal("Desempenho muito alto", phone.Tier);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
         Assert.NotNull(results);
         Assert.NotEmpty(results!);
         Assert.Equal("G6", results[0].Name);
-        Assert.Equal("Top de linha", results[0].Tier);
+        Assert.Equal("Desempenho muito alto", results[0].Tier);
     }
 
     [Fact]
@@ -429,7 +429,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
         Assert.NotNull(results);
         Assert.NotEmpty(results!);
         Assert.Equal("iPhone 14 Pro Max", results[0].Name);
-        Assert.Equal("Top de linha", results[0].Tier);
+        Assert.Equal("Desempenho muito alto", results[0].Tier);
     }
 
     [Fact]
@@ -695,7 +695,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
 
         Assert.True(response.IsSuccessStatusCode);
         Assert.Contains("Comecar rapido", html, StringComparison.Ordinal);
-        Assert.Contains("Top de linha", html, StringComparison.Ordinal);
+        Assert.Contains("Desempenho muito alto", html, StringComparison.Ordinal);
         Assert.Contains("Comparador", html, StringComparison.Ordinal);
         Assert.Contains("Explorar por marca", html, StringComparison.Ordinal);
     }

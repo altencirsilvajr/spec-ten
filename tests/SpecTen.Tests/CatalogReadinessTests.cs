@@ -301,7 +301,7 @@ public sealed class CatalogReadinessTests
 
         Assert.True(details.IsPublicReady);
         Assert.Equal(ClassificationTier.Entry, details.Classification.Tier);
-        Assert.Equal("Entrada", details.Classification.Label);
+        Assert.Equal("Desempenho basico", details.Classification.Label);
         Assert.Equal("legacy-profile", details.Classification.Basis);
         Assert.Equal("Fonte unica", details.TrustLabel);
     }

@@ -114,8 +114,8 @@
             </label>
 
             <div>
-                <span class="filter-label">Faixa</span>
-                <div class="segmented-control" role="tablist" aria-label="Faixa de aparelho">
+                <span class="filter-label">Desempenho estimado</span>
+                <div class="segmented-control" role="tablist" aria-label="Faixa de desempenho estimado">
                     @foreach (var option in TierOptions)
                     {
                         <button type="button"
@@ -232,14 +232,6 @@
                     <div>
                         <dt>Chipset</dt>
                         <dd>@CompactChipset(featuredMatch.Chipset)</dd>
-                    </div>
-                    <div>
-                        <dt>Tela</dt>
-                        <dd>@(featuredMatch.Display ?? "-")</dd>
-                    </div>
-                    <div>
-                        <dt>Camera</dt>
-                        <dd>@(featuredMatch.MainCamera ?? "-")</dd>
                     </div>
                     <div>
                         <dt>Bateria</dt>
@@ -390,14 +382,6 @@ else
                                         <div>
                                             <dt>Chipset</dt>
                                             <dd>@CompactChipset(phone.Chipset)</dd>
-                                        </div>
-                                        <div>
-                                            <dt>Tela</dt>
-                                            <dd>@(phone.Display ?? "-")</dd>
-                                        </div>
-                                        <div>
-                                            <dt>Camera</dt>
-                                            <dd>@(phone.MainCamera ?? "-")</dd>
                                         </div>
                                         <div>
                                             <dt>Bateria</dt>
@@ -580,9 +564,9 @@ else
     private static readonly IReadOnlyList<FilterOption> TierOptions =
     [
         new("", "Todas"),
-        new("top", "Top de linha"),
-        new("intermediario", "Intermediarios"),
-        new("entrada", "Entrada"),
+        new("top", "Muito alto"),
+        new("intermediario", "Equilibrado"),
+        new("entrada", "Basico"),
     ];
 
     private static readonly IReadOnlyList<FilterOption> SortOptions =
@@ -635,10 +619,10 @@ else
                                       !string.IsNullOrWhiteSpace(SelectedBrandSlug);
     private bool ResultLimitReached => Phones.Count >= SearchResultLimit;
     private string ResultHeading => string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SelectedTierKey) && string.IsNullOrWhiteSpace(SelectedBrandSlug)
-        ? "Catalogo dividido por faixa"
+        ? "Catalogo por desempenho estimado"
         : $"{Phones.Count} resultado(s)";
     private string ResultDescription => string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SelectedTierKey) && string.IsNullOrWhiteSpace(SelectedBrandSlug)
-        ? "Top de linha, intermediarios e entrada com o mesmo fluxo de leitura."
+        ? "Filtre por desempenho estimado ou busque um modelo para ver apenas o essencial."
         : ResultLimitReached
             ? $"Mostrando ate {SearchResultLimit} resultados desta filtragem. Refine por nome, linha ou chipset para cortar ruido sem perder os modelos recentes."
         : CoverageOnlyCount == 0 && PartialPhoneCount == 0
@@ -1444,9 +1428,9 @@ else
 
         var sections = new List<CatalogSectionViewModel>
         {
-            CreateSection("Top de linha", "Modelos com foco em camera, desempenho e acabamento premium.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Top de linha")),
-            CreateSection("Intermediarios", "Aparelhos equilibrados para quem quer desempenho e custo mais controlado.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Intermediario")),
-            CreateSection("Entrada", "Modelos acessiveis para uso diario, com leitura simples das limitacoes e pontos fortes.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Entrada")),
+            CreateSection("Desempenho muito alto", "Estimativa de capacidade de processamento; nao equivale, por si so, a segmento premium.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Desempenho muito alto")),
+            CreateSection("Desempenho equilibrado", "Estimativa para aparelhos com boa capacidade geral e foco em equilibrio.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Desempenho equilibrado")),
+            CreateSection("Desempenho basico", "Estimativa para uso diario e tarefas menos exigentes.", phones.Where(phone => phone.IsPublicReady && phone.Tier == "Desempenho basico")),
         };
 
         var partialSection = CreateSection(

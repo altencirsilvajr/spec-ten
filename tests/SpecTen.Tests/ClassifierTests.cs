@@ -145,9 +145,9 @@ public sealed class ClassifierTests
     [Fact]
     public void LabelFor_ReturnsPortuguesePublicLabels()
     {
-        Assert.Equal("Entrada", PhoneClassifier.LabelFor(ClassificationTier.Entry));
-        Assert.Equal("Intermediario", PhoneClassifier.LabelFor(ClassificationTier.MidRange));
-        Assert.Equal("Top de linha", PhoneClassifier.LabelFor(ClassificationTier.Flagship));
+        Assert.Equal("Desempenho basico", PhoneClassifier.LabelFor(ClassificationTier.Entry));
+        Assert.Equal("Desempenho equilibrado", PhoneClassifier.LabelFor(ClassificationTier.MidRange));
+        Assert.Equal("Desempenho muito alto", PhoneClassifier.LabelFor(ClassificationTier.Flagship));
     }
 
     [Fact]

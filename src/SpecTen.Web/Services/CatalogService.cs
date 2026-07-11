@@ -209,7 +209,8 @@ public sealed partial class CatalogService(
                     result.Chipset,
                     result.ReleasedAt,
                     result.HasFullCatalogEntry,
-                    result.IsPublicReady))
+                    result.IsPublicReady,
+                    result.CommercialSegment))
                 .ToList();
         }) ?? [];
     }
@@ -248,7 +249,8 @@ public sealed partial class CatalogService(
                     result.Chipset,
                     result.ReleasedAt,
                     result.HasFullCatalogEntry,
-                    result.IsPublicReady))
+                    result.IsPublicReady,
+                    result.CommercialSegment))
                 .ToList();
         }) ?? [];
     }
@@ -1747,7 +1749,8 @@ public sealed partial class CatalogService(
             details.ReadinessNote,
             details.SourceCount,
             details.HasOfficialSource,
-            phone.UpdatedAt);
+            phone.UpdatedAt,
+            details.CommercialSegment);
     }
 
     private bool NeedsOnDemandRefresh(PhoneSearchResult result)
@@ -1923,7 +1926,8 @@ public sealed partial class CatalogService(
             null,
             null,
             null,
-            phone.UpdatedAt);
+            phone.UpdatedAt,
+            ProductPosition.For(phone.Brand.Slug, phone.Slug));
     }
 
     private static PhoneDetailsDto ToCoverageDetails(CoveragePhoneResult coverage)

@@ -70,9 +70,7 @@ else
                         <span>@FormatLaunchPrice(Phone.LaunchPriceUsd)</span>
                     }
                     <span>@FreshnessFormatter.UpdatedLabel(Phone.UpdatedAt)</span>
-                    <span>Confianca minima: @Phone.MinConfidence.ToString("P0")</span>
                     <span>Fonte principal: @PrimarySourceLabel</span>
-                    <span>Proveniencia: @Phone.TrustLabel</span>
                 }
                 else if (!string.IsNullOrWhiteSpace(Phone.DiscoverySourceUrl))
                 {
@@ -87,6 +85,10 @@ else
             </div>
             <div class="hero-actions">
                 <span class="tier large">@Phone.PrimaryBadgeLabel</span>
+                @if (!string.IsNullOrWhiteSpace(Phone.CommercialSegment))
+                {
+                    <span class="tier subtle-tier">@Phone.Classification.Label</span>
+                }
                 @if (Phone.HasFullCatalogEntry)
                 {
                     <a class="button subtle" href="#ficha-tecnica">Ver ficha tecnica</a>
@@ -114,7 +116,7 @@ else
             {
                 <p class="compare-flow-note">@CompareSelectionHint</p>
             }
-            <p class="classification-note">@Phone.Classification.Explanation</p>
+            <p class="classification-note"><strong>Leitura de desempenho:</strong> @Phone.Classification.Explanation <a href="/metodologia">Entenda a classificacao</a>.</p>
             @if (Phone.HasFullCatalogEntry &&
                  (!Phone.IsPublicReady || string.Equals(Phone.TrustLabel, "Fonte unica", StringComparison.OrdinalIgnoreCase)) &&
                  !string.IsNullOrWhiteSpace(Phone.ReadinessNote))
@@ -172,19 +174,9 @@ else
 
         <section class="detail-trust-strip" aria-label="Resumo de confianca">
             <div>
-                <span>Specs publicadas</span>
-                <strong>@TotalSpecCount</strong>
-                <p class="muted">Campos visiveis ja consolidados para consulta rapida.</p>
-            </div>
-            <div>
                 <span>Proveniencia</span>
                 <strong>@Phone.TrustLabel</strong>
                 <p class="muted">@Phone.TrustSummary Fonte dominante: @PrimarySourceLabel.</p>
-            </div>
-            <div>
-                <span>Ultima consolidacao</span>
-                <strong>@FreshnessFormatter.UpdatedLabel(Phone.UpdatedAt)</strong>
-                <p class="muted">Momento mais recente em que a ficha consolidada desta pagina foi atualizada.</p>
             </div>
             <div>
                 <span>Itens em revisao</span>
@@ -578,8 +570,8 @@ else
 
         QuickSpecs = Phone?.SpecGroups
             .SelectMany(group => group.Specs)
-            .Where(spec => spec.Key is "chipset" or "display_size" or "battery" or "main_camera")
-            .Take(4)
+            .Where(spec => spec.Key is "chipset" or "display_size" or "battery")
+            .Take(3)
             .ToList() ?? [];
         RelatedPhones = Phone is null
             ? []
