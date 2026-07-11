@@ -1,0 +1,33 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <a class="skip-link" href="#main-content">Pular para o conteudo</a>
+    <header class="topbar">
+        <a class="brand-mark" href="/" aria-label="Inicio">
+            <span class="brand-symbol">SP</span>
+            <span>SpecTen</span>
+        </a>
+        <HeaderSearch @rendermode="InteractiveServer" />
+        <nav class="main-nav" aria-label="Principal">
+            <a href="/celulares">Catalogo</a>
+            <CompareNavLink @rendermode="InteractiveServer" />
+        </nav>
+    </header>
+
+    <main id="main-content">
+        @Body
+    </main>
+
+    <MobileCompareTray @rendermode="InteractiveServer" />
+
+    <footer class="footer">
+        <span>Specs com fonte, confianca e revisao.</span>
+        <a href="/sitemap.xml">Sitemap</a>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">x</span>
+</div>

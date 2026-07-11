@@ -1,0 +1,733 @@
+@page "/celulares/{Marca}/{Slug}"
+@rendermode InteractiveServer
+@inject CatalogService Catalog
+@inject CompareSelectionState CompareSelection
+@inject RecentlyViewedState RecentlyViewed
+@inject NavigationManager Navigation
+
+<PageTitle>@(Phone?.FullName ?? "Aparelho")</PageTitle>
+
+@if (Phone is null)
+{
+    <section class="empty-state">
+        <h1>Aparelho nao encontrado</h1>
+        <p class="muted">Esse link nao bate com uma ficha publica atual. Voce ainda pode voltar ao catalogo ou procurar um nome parecido.</p>
+        <div class="empty-state-actions">
+            <a class="button primary" href="/celulares">Ver catalogo</a>
+            <a class="button subtle" href="@SimilarSearchUrl">Buscar nome parecido</a>
+        </div>
+    </section>
+}
+else
+{
+    <HeadContent>
+        <meta name="description" content="@Phone.Summary" />
+        <meta property="og:title" content="@Phone.FullName" />
+        <meta property="og:description" content="@Phone.Summary" />
+        @if (!Phone.IsPublicReady)
+        {
+            <meta name="robots" content="noindex,follow" />
+        }
+        @if (!string.IsNullOrWhiteSpace(Phone.ImageUrl))
+        {
+            <meta property="og:image" content="@Phone.ImageUrl" />
+        }
+        <link rel="canonical" href="@($"/celulares/{Phone.BrandSlug}/{Phone.Slug}")" />
+        <script type="application/ld+json">
+            @ProductJson
+        </script>
+    </HeadContent>
+
+    <section class="phone-hero">
+        <div class="phone-photo media-frame">
+            <PhoneMediaContent ImageUrl="@Phone.ImageUrl"
+                               Alt="@Phone.FullName"
+                               Brand="@Phone.DisplayBrand"
+                               Model="@Phone.ModelName"
+                               Loading="eager" />
+        </div>
+        <div class="phone-summary">
+            <p class="eyebrow">@Phone.DisplayBrand</p>
+            <h1 class="page-title">@Phone.FullName</h1>
+            <p>@Phone.Summary</p>
+            <div class="summary-meta">
+                @if (Phone.HasFullCatalogEntry)
+                {
+                    <span>@ReleaseLabel</span>
+                    @if (Phone.LaunchPriceUsd is not null)
+                    {
+                        <span>@FormatLaunchPrice(Phone.LaunchPriceUsd)</span>
+                    }
+                    <span>@FreshnessFormatter.UpdatedLabel(Phone.UpdatedAt)</span>
+                    <span>Confianca minima: @Phone.MinConfidence.ToString("P0")</span>
+                    <span>Fonte principal: @PrimarySourceLabel</span>
+                    <span>Proveniencia: @Phone.TrustLabel</span>
+                }
+                else if (!string.IsNullOrWhiteSpace(Phone.DiscoverySourceUrl))
+                {
+                    <span>Estado: @Phone.StateLabel</span>
+                    <a href="@Phone.DiscoverySourceUrl" target="_blank" rel="noreferrer">Origem: @(Phone.DiscoverySourceName ?? "Busca ampla")</a>
+                }
+                else
+                {
+                    <span>Estado: @Phone.StateLabel</span>
+                    <span>Origem: @(Phone.DiscoverySourceName ?? "Busca ampla")</span>
+                }
+            </div>
+            <div class="hero-actions">
+                <span class="tier large">@Phone.PrimaryBadgeLabel</span>
+                @if (Phone.HasFullCatalogEntry)
+                {
+                    <a class="button subtle" href="#ficha-tecnica">Ver ficha tecnica</a>
+                }
+                <ShareLinkButton @rendermode="InteractiveServer"
+                                 Url="@CurrentPath"
+                                 Title="@Phone.FullName"
+                                 Text="Veja esta ficha tecnica no SpecTen." />
+                @if (Phone.IsPublicReady)
+                {
+                    <button class="button @(IsCurrentPhoneSelected ? "primary" : "subtle")"
+                            type="button"
+                            disabled="@(!IsCurrentPhoneSelected && CompareSelection.Count >= 4)"
+                            @onclick="ToggleCompareSelection">
+                        @(IsCurrentPhoneSelected ? "Remover do comparador" : CompareSelection.Count >= 4 ? "Limite de 4 atingido" : "Adicionar ao comparador")
+                    </button>
+                    <a class="button subtle" href="@CompareFlowUrl">@CompareFlowLabel</a>
+                }
+                else
+                {
+                    <a class="button subtle" href="@($"/celulares?marca={Phone.BrandSlug}")">Explorar fichas prontas da marca</a>
+                }
+            </div>
+            @if (Phone.IsPublicReady)
+            {
+                <p class="compare-flow-note">@CompareSelectionHint</p>
+            }
+            <p class="classification-note">@Phone.Classification.Explanation</p>
+            @if (Phone.HasFullCatalogEntry &&
+                 (!Phone.IsPublicReady || string.Equals(Phone.TrustLabel, "Fonte unica", StringComparison.OrdinalIgnoreCase)) &&
+                 !string.IsNullOrWhiteSpace(Phone.ReadinessNote))
+            {
+                <p class="classification-note">@Phone.ReadinessNote</p>
+            }
+        </div>
+    </section>
+
+    @if (Phone.IsPublicReady && HeroCompareTargets.Count > 0)
+    {
+        <section class="section-jumpbar detail-compare-bar" aria-label="Comparar agora com modelos parecidos">
+            <strong class="jumpbar-label">Comparar agora com</strong>
+            <div class="jumpbar-list">
+                @foreach (var related in HeroCompareTargets)
+                {
+                    <a class="jump-chip" href="/comparar?ids=@Phone.Id,@related.Id">
+                        <span>@related.FullName</span>
+                        <span class="chip-secondary">@related.PrimaryBadgeLabel</span>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Reported == "1")
+    {
+        <p class="notice">Reporte recebido para revisao.</p>
+    }
+    else if (ReportError == "1")
+    {
+        <p class="notice warn">Nao foi possivel enviar o reporte. Revise o formulario e tente novamente.</p>
+    }
+    else if (ReportLimited == "1")
+    {
+        <p class="notice warn">Voce enviou correcoes demais em pouco tempo. Aguarde alguns minutos e tente novamente.</p>
+    }
+
+    @if (Phone.HasFullCatalogEntry)
+    {
+        @if (!Phone.IsPublicReady)
+        {
+            <p class="notice warn">@Phone.ReadinessNote</p>
+        }
+
+        <section class="quick-specs">
+            @foreach (var spec in QuickSpecs)
+            {
+                <div>
+                    <span>@spec.DisplayName</span>
+                    <strong>@QuickSpecValue(spec)</strong>
+                </div>
+            }
+        </section>
+
+        <section class="detail-trust-strip" aria-label="Resumo de confianca">
+            <div>
+                <span>Specs publicadas</span>
+                <strong>@TotalSpecCount</strong>
+                <p class="muted">Campos visiveis ja consolidados para consulta rapida.</p>
+            </div>
+            <div>
+                <span>Proveniencia</span>
+                <strong>@Phone.TrustLabel</strong>
+                <p class="muted">@Phone.TrustSummary Fonte dominante: @PrimarySourceLabel.</p>
+            </div>
+            <div>
+                <span>Ultima consolidacao</span>
+                <strong>@FreshnessFormatter.UpdatedLabel(Phone.UpdatedAt)</strong>
+                <p class="muted">Momento mais recente em que a ficha consolidada desta pagina foi atualizada.</p>
+            </div>
+            <div>
+                <span>Itens em revisao</span>
+                <strong>@ReviewSpecCount</strong>
+                <p class="muted">Nada fica escondido quando ainda existe conflito entre fontes.</p>
+            </div>
+        </section>
+
+        @if (DetailLinks.Count > 0)
+        {
+            <nav class="section-jumpbar" aria-label="Navegar pela ficha">
+                <strong class="jumpbar-label">Navegar pela ficha</strong>
+                <div class="jumpbar-list">
+                    @foreach (var link in DetailLinks)
+                    {
+                        <a class="jump-chip" href="@($"#{link.Anchor}")">@link.Label</a>
+                    }
+                </div>
+            </nav>
+        }
+
+        <section class="table-filter-bar detail-filter-bar" aria-label="Filtrar ficha tecnica">
+            <div class="table-filter-search">
+                <label for="detail-spec-filter">Filtrar specs desta ficha</label>
+                <div class="search-row">
+                    <input id="detail-spec-filter"
+                           value="@SpecFilterText"
+                           @oninput="OnSpecFilterChanged"
+                           placeholder="Bateria, USB-C, Wi-Fi 7, IP68..." />
+                    <button class="button subtle compact"
+                            type="button"
+                            disabled="@(!HasActiveSpecFilters)"
+                            @onclick="ClearSpecFilters">
+                        Limpar filtro
+                    </button>
+                </div>
+                <p class="muted">Busque por grupo, nome da spec, valor ou fonte para chegar mais rapido ao ponto certo da ficha.</p>
+            </div>
+
+            <div class="detail-filter-actions">
+                <label class="toggle-line">
+                    <input type="checkbox" @bind="OnlyReviewSpecs" />
+                    <span>Mostrar so itens em revisao</span>
+                </label>
+                <span class="coverage-meta">@DetailFilterSummary</span>
+            </div>
+        </section>
+
+        <section class="details-grid">
+            <div>
+                <section id="ficha-tecnica" class="data-section">
+                    <div class="section-heading compact">
+                        <div>
+                            <p class="eyebrow">Specs</p>
+                            <h2>Ficha tecnica</h2>
+                        </div>
+                        <div class="detail-heading-meta">
+                            <span class="confidence">Min. @Phone.MinConfidence.ToString("P0")</span>
+                            <span class="coverage-meta">@DetailFilterSummary</span>
+                        </div>
+                    </div>
+
+                    @if (FilteredSpecGroups.Count == 0)
+                    {
+                        <p class="notice warn detail-empty-filter">Nenhuma spec bate com o filtro atual. Limpe a busca ou volte a mostrar todos os itens.</p>
+                    }
+
+                    @foreach (var group in FilteredSpecGroups)
+                    {
+                        <section id="@DetailAnchor(group.Name)" class="spec-group">
+                            <h3>@group.Name</h3>
+                            <div class="spec-list">
+                                @foreach (var spec in group.Specs)
+                                {
+                                    <article class="spec-row @(spec.Status == SpecStatus.NeedsReview ? "needs-review" : null)">
+                                        <div>
+                                            <span>@spec.DisplayName</span>
+                                            <strong>@spec.DisplayValue</strong>
+                                        </div>
+                                        <div class="source-line">
+                                            @if (!string.IsNullOrWhiteSpace(spec.SourceUrl))
+                                            {
+                                                <a href="@spec.SourceUrl" target="_blank" rel="noreferrer">@spec.SourceName</a>
+                                            }
+                                            else
+                                            {
+                                                <span>@spec.SourceName</span>
+                                            }
+                                            <span>@spec.Confidence.ToString("P0")</span>
+                                            <span>@FreshnessFormatter.CollectedLabel(spec.CollectedAt)</span>
+                                            @if (spec.Status == SpecStatus.NeedsReview)
+                                            {
+                                                <span>Revisao</span>
+                                            }
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+                        </section>
+                    }
+                </section>
+            </div>
+
+            <aside class="side-panel">
+                <section id="variantes" class="data-section">
+                    <h2>Variantes</h2>
+                    <div class="variant-list">
+                        @foreach (var variant in Phone.Variants)
+                        {
+                            <span>@variant.Name</span>
+                        }
+                    </div>
+                </section>
+
+                <section id="benchmarks" class="data-section">
+                    <h2>Benchmarks</h2>
+                    <div class="benchmark-list">
+                        @foreach (var benchmark in Phone.Benchmarks)
+                        {
+                            <div>
+                                <span>@benchmark.Name</span>
+                                <strong>@benchmark.Score.ToString("N0")</strong>
+                                <p class="muted">@benchmark.SourceName · @FreshnessFormatter.UpdatedLabel(benchmark.RecordedAt)</p>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <section id="reportar-erro" class="data-section">
+                    <h2>Reportar erro</h2>
+                    <form class="report-form" method="post" action="/api/reports/form">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="phoneModelId" value="@Phone.Id" />
+                        <input type="hidden" name="returnUrl" value="@CurrentPath" />
+                        <label class="visually-hidden" aria-hidden="true">
+                            Nao preencha este campo
+                            <input type="text" name="company" tabindex="-1" autocomplete="off" />
+                        </label>
+                        <label>
+                            Campo
+                            <select name="fieldKey">
+                                <option value="">Geral</option>
+                                @foreach (var spec in Phone.SpecGroups.SelectMany(group => group.Specs))
+                                {
+                                    <option value="@spec.Key">@spec.DisplayName</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
+                            Email
+                            <input type="email" name="reporterEmail" placeholder="opcional" />
+                        </label>
+                        <label>
+                            Mensagem
+                            <textarea name="message" required rows="4"></textarea>
+                        </label>
+                        <button class="button primary" type="submit">Enviar</button>
+                    </form>
+                </section>
+            </aside>
+        </section>
+    }
+    else
+    {
+        <section class="coverage-panel">
+            <div class="section-heading compact">
+                <div>
+                    <p class="eyebrow">Cobertura inicial</p>
+                    <h2>Ficha completa em preparacao</h2>
+                </div>
+                <span class="confidence">Busca ampla ativa</span>
+            </div>
+            <p>@(Phone.AvailabilityNote ?? "Este modelo ja foi encontrado na busca publica, mas ainda nao recebeu consolidacao completa de specs.")</p>
+            <div class="coverage-grid">
+                <div>
+                    <span>Busca</span>
+                    <strong>Ativa</strong>
+                    <p>Este modelo ja aparece no catalogo e pode ser reencontrado pela mesma URL.</p>
+                </div>
+                <div>
+                    <span>Specs verificadas</span>
+                    <strong>Pendente</strong>
+                    <p>Campos criticos ainda nao foram cruzados com fontes suficientes para publicacao.</p>
+                </div>
+                <div>
+                    <span>Comparacao</span>
+                    <strong>Bloqueada</strong>
+                    <p>O comparador so aceita aparelhos com ficha publicada para nao mascarar lacunas.</p>
+                </div>
+            </div>
+        </section>
+    }
+
+    @if (RelatedPhones.Count > 0)
+    {
+        <section class="catalog-section related-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Continuar explorando</p>
+                    <h2>@(Phone.IsPublicReady ? "Modelos parecidos para comparar" : "Modelos dessa marca ja publicados")</h2>
+                </div>
+                <p class="muted">@(Phone.IsPublicReady
+                    ? "Sugestoes por faixa, marca, preco e momento de lancamento para evitar voltar ao zero."
+                    : "Enquanto esta ficha chega, voce ainda pode explorar modelos dessa marca que ja estao completos.")</p>
+            </div>
+
+            <div class="phone-grid">
+                @foreach (var related in RelatedPhones)
+                {
+                    <article class="phone-card">
+                        <a class="phone-card-media media-frame" href="/celulares/@related.BrandSlug/@related.Slug" aria-label="@related.FullName">
+                            <PhoneMediaContent ImageUrl="@related.ImageUrl"
+                                               Alt="@related.FullName"
+                                               Brand="@related.DisplayBrand"
+                                               Model="@related.ModelName" />
+                        </a>
+
+                        <div class="phone-card-body">
+                            <div class="catalog-card-header">
+                                <div>
+                                    <p class="muted">@related.DisplayBrand</p>
+                                    <h3><a href="/celulares/@related.BrandSlug/@related.Slug">@related.ModelName</a></h3>
+                                    <p class="catalog-meta">@FormatRelease(related.ReleasedAt) · Confianca @related.MinConfidence.ToString("P0")</p>
+                                </div>
+                                <span class="tier">@related.PrimaryBadgeLabel</span>
+                            </div>
+
+                            <dl class="spec-pills">
+                                <div>
+                                    <dt>Chipset</dt>
+                                    <dd>@(related.Chipset ?? "-")</dd>
+                                </div>
+                                <div>
+                                    <dt>Bateria</dt>
+                                    <dd>@(related.Battery ?? "-")</dd>
+                                </div>
+                            </dl>
+
+                            <div class="card-actions">
+                                <a class="button subtle" href="/celulares/@related.BrandSlug/@related.Slug">Ver ficha</a>
+                                @if (Phone.IsPublicReady && related.IsPublicReady)
+                                {
+                                    <a class="button primary" href="/comparar?ids=@Phone.Id,@related.Id">Comparar com este</a>
+                                }
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    [Parameter]
+    public string Marca { get; set; } = "";
+
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "reported")]
+    public string? Reported { get; set; }
+
+    [SupplyParameterFromQuery(Name = "reportError")]
+    public string? ReportError { get; set; }
+
+    [SupplyParameterFromQuery(Name = "reportLimited")]
+    public string? ReportLimited { get; set; }
+
+    private PhoneDetailsDto? Phone { get; set; }
+    private IReadOnlyList<SpecFactDto> QuickSpecs { get; set; } = [];
+    private IReadOnlyList<PhoneSearchResult> RelatedPhones { get; set; } = [];
+    private int? LastTrackedPhoneId { get; set; }
+    private string SpecFilterText { get; set; } = "";
+    private bool OnlyReviewSpecs { get; set; }
+    private string CurrentPath => new Uri(Navigation.Uri).PathAndQuery;
+    private string ReleaseLabel => Phone?.ReleasedAt is null ? "Data de lancamento nao publicada" : $"Lancado em {Phone.ReleasedAt:dd/MM/yyyy}";
+    private int TotalSpecCount => Phone?.SpecGroups.Sum(group => group.Specs.Count) ?? 0;
+    private IReadOnlyList<SpecGroupDto> FilteredSpecGroups => BuildFilteredSpecGroups();
+    private int VisibleSpecCount => FilteredSpecGroups.Sum(group => group.Specs.Count);
+    private bool HasActiveSpecFilters => !string.IsNullOrWhiteSpace(SpecFilterText) || OnlyReviewSpecs;
+    private string DetailFilterSummary => TotalSpecCount == 0
+        ? "Nenhuma spec publicada"
+        : VisibleSpecCount == TotalSpecCount
+            ? $"{TotalSpecCount} specs visiveis"
+            : $"{VisibleSpecCount} de {TotalSpecCount} specs visiveis";
+    private bool IsCurrentPhoneSelected => Phone?.IsPublicReady == true && CompareSelection.Contains(Phone.Id);
+    private IReadOnlyList<PhoneSearchResult> HeroCompareTargets => RelatedPhones
+        .Where(phone => phone.IsPublicReady)
+        .Take(3)
+        .ToList();
+    private string CompareFlowLabel => Phone?.IsPublicReady != true
+        ? "Explorar fichas prontas da marca"
+        : IsCurrentPhoneSelected && CompareSelection.Count >= 2
+            ? "Abrir comparacao atual"
+            : "Escolher rival no catalogo";
+    private string CompareFlowUrl => Phone?.IsPublicReady != true
+        ? $"/celulares?marca={Phone?.BrandSlug}"
+        : IsCurrentPhoneSelected && CompareSelection.Count >= 2
+            ? CompareSelection.BuildCompareUrl()
+            : $"/celulares?marca={Phone?.BrandSlug}#catalog-results";
+    private string CompareSelectionHint => Phone?.IsPublicReady != true
+        ? string.Empty
+        : IsCurrentPhoneSelected && CompareSelection.Count >= 2
+            ? "Sua selecao atual continua guardada. Abra o comparador quando quiser continuar."
+            : IsCurrentPhoneSelected
+                ? "Este aparelho ficou guardado para a proxima comparacao. Falta mais um modelo para liberar a tabela."
+                : CompareSelection.Count >= 4
+                    ? "Voce ja atingiu o limite de quatro modelos na selecao atual."
+                    : "Guarde este aparelho no comparador e depois escolha o rival sem perder o contexto da ficha.";
+    private string PrimarySourceLabel => Phone?.HasFullCatalogEntry == true
+        ? Phone.SpecGroups
+            .SelectMany(group => group.Specs)
+            .Select(spec => spec.SourceName)
+            .Where(source => !string.IsNullOrWhiteSpace(source))
+            .GroupBy(source => source, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .Select(group => group.Key)
+            .FirstOrDefault() ?? "N/A"
+        : Phone?.DiscoverySourceName ?? "Busca ampla";
+    private int ReviewSpecCount => Phone?.SpecGroups
+        .SelectMany(group => group.Specs)
+        .Count(spec => spec.Status == SpecStatus.NeedsReview) ?? 0;
+    private IReadOnlyList<DetailJumpLink> DetailLinks => Phone?.HasFullCatalogEntry == true
+        ? [
+            new DetailJumpLink("ficha-tecnica", "Ficha tecnica"),
+            .. FilteredSpecGroups.Select(group => new DetailJumpLink(DetailAnchor(group.Name), group.Name)),
+            new DetailJumpLink("variantes", "Variantes"),
+            new DetailJumpLink("benchmarks", "Benchmarks"),
+            new DetailJumpLink("reportar-erro", "Reportar erro"),
+        ]
+        : [];
+    private string ProductJson => Phone is null
+        ? "{}"
+        : System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "Product",
+            ["name"] = Phone.FullName,
+            ["brand"] = Phone.Brand,
+            ["description"] = Phone.Summary,
+            ["image"] = Phone.ImageUrl,
+        });
+    private string SimilarSearchUrl => Navigation.GetUriWithQueryParameters("/celulares", new Dictionary<string, object?>
+    {
+        ["busca"] = SimilarSearchText,
+    });
+    private string SimilarSearchText => BuildSimilarSearchText();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Phone = await Catalog.GetPhoneBySlugAsync(Marca, Slug, CancellationToken.None);
+        SpecFilterText = "";
+        OnlyReviewSpecs = false;
+        if (HttpContext is not null)
+        {
+            HttpContext.Response.StatusCode = Phone is null
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status200OK;
+        }
+
+        if (Phone?.IsPublicReady == true && CompareSelection.Contains(Phone.Id))
+        {
+            CompareSelection.AddOrUpdate(ToCompareSelectionItem(Phone), notify: false);
+        }
+
+        QuickSpecs = Phone?.SpecGroups
+            .SelectMany(group => group.Specs)
+            .Where(spec => spec.Key is "chipset" or "display_size" or "battery" or "main_camera")
+            .Take(4)
+            .ToList() ?? [];
+        RelatedPhones = Phone is null
+            ? []
+            : Phone.IsPublicReady
+                ? await Catalog.GetRelatedPhonesAsync(Phone.Id, 4, CancellationToken.None)
+                : await Catalog.SearchAsync(null, null, Phone.BrandSlug, CatalogSortOption.Newest, 4, CancellationToken.None);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var phoneToTrack = Phone;
+        var shouldTrackView = phoneToTrack is not null && phoneToTrack.Id != LastTrackedPhoneId;
+        var compareSelectionChanged = false;
+
+        if (firstRender)
+        {
+            compareSelectionChanged = await CompareSelection.EnsureHydratedAsync();
+        }
+
+        if (shouldTrackView && phoneToTrack is not null)
+        {
+            await RecentlyViewed.EnsureHydratedAsync();
+            RecentlyViewed.AddOrUpdate(ToRecentlyViewedItem(phoneToTrack));
+            LastTrackedPhoneId = phoneToTrack.Id;
+        }
+
+        if (compareSelectionChanged && Phone?.IsPublicReady == true && CompareSelection.Contains(Phone.Id))
+        {
+            CompareSelection.AddOrUpdate(ToCompareSelectionItem(Phone), notify: false);
+        }
+
+        if (compareSelectionChanged)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static string FormatRelease(DateTimeOffset? releasedAt)
+    {
+        return releasedAt is null
+            ? "Sem data publicada"
+            : $"Lancado em {releasedAt.Value:MMM yyyy}";
+    }
+
+    private static string FormatLaunchPrice(decimal? launchPriceUsd)
+    {
+        return launchPriceUsd is null
+            ? "Preco de lancamento nao publicado"
+            : $"Preco lancamento: US$ {launchPriceUsd.Value:0}";
+    }
+
+    private static string DetailAnchor(string name)
+    {
+        return $"spec-{Slugger.Slugify(name)}";
+    }
+
+    private static string QuickSpecValue(SpecFactDto spec)
+    {
+        return spec.Key == "chipset"
+            ? PhoneNameFormatter.CompactChipset(spec.DisplayValue)
+            : spec.DisplayValue;
+    }
+
+    private void OnSpecFilterChanged(ChangeEventArgs args)
+    {
+        SpecFilterText = args.Value?.ToString()?.TrimStart() ?? "";
+    }
+
+    private void ClearSpecFilters()
+    {
+        SpecFilterText = "";
+        OnlyReviewSpecs = false;
+    }
+
+    private IReadOnlyList<SpecGroupDto> BuildFilteredSpecGroups()
+    {
+        if (Phone?.HasFullCatalogEntry != true)
+        {
+            return [];
+        }
+
+        var tokens = string.IsNullOrWhiteSpace(SpecFilterText)
+            ? []
+            : PhoneSearchText.Tokenize(SpecFilterText);
+        var filteredGroups = new List<SpecGroupDto>();
+        foreach (var group in Phone.SpecGroups)
+        {
+            var visibleSpecs = group.Specs
+                .Where(spec => MatchesActiveFilters(group.Name, spec, tokens))
+                .ToList();
+            if (visibleSpecs.Count == 0)
+            {
+                continue;
+            }
+
+            filteredGroups.Add(new SpecGroupDto(group.Name, visibleSpecs));
+        }
+
+        return filteredGroups;
+    }
+
+    private bool MatchesActiveFilters(string groupName, SpecFactDto spec, IReadOnlyList<string> tokens)
+    {
+        if (OnlyReviewSpecs && spec.Status != SpecStatus.NeedsReview)
+        {
+            return false;
+        }
+
+        if (tokens.Count == 0)
+        {
+            return true;
+        }
+
+        var searchableParts = new[]
+        {
+            PhoneSearchText.Normalize(groupName),
+            PhoneSearchText.Normalize(spec.Key),
+            PhoneSearchText.Normalize(spec.DisplayName),
+            PhoneSearchText.Normalize(spec.DisplayValue),
+            PhoneSearchText.Normalize(spec.SourceName),
+            PhoneSearchText.Normalize(spec.Unit),
+        };
+
+        return tokens.All(token => searchableParts.Any(part => part.Contains(token, StringComparison.Ordinal)));
+    }
+
+    private string BuildSimilarSearchText()
+    {
+        var parts = new[]
+        {
+            Marca,
+            Slug?.Replace("-", " ", StringComparison.Ordinal),
+        };
+
+        return string.Join(' ', parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
+
+    private void ToggleCompareSelection()
+    {
+        if (Phone?.IsPublicReady != true)
+        {
+            return;
+        }
+
+        if (IsCurrentPhoneSelected)
+        {
+            CompareSelection.Remove(Phone.Id);
+            return;
+        }
+
+        CompareSelection.AddOrUpdate(ToCompareSelectionItem(Phone));
+    }
+
+    private static CompareSelectionItem ToCompareSelectionItem(PhoneDetailsDto phone)
+    {
+        return new CompareSelectionItem(
+            phone.Id,
+            phone.Brand,
+            phone.BrandSlug,
+            phone.Name,
+            phone.Slug,
+            phone.PrimaryBadgeLabel,
+            phone.HasFullCatalogEntry);
+    }
+
+    private static RecentlyViewedItem ToRecentlyViewedItem(PhoneDetailsDto phone)
+    {
+        var badgeLabel = phone.HasFullCatalogEntry
+            ? phone.PrimaryBadgeLabel
+            : phone.StateLabel;
+
+        return new RecentlyViewedItem(
+            phone.Id,
+            phone.Brand,
+            phone.BrandSlug,
+            phone.Name,
+            phone.Slug,
+            badgeLabel,
+            phone.HasFullCatalogEntry,
+            DateTimeOffset.UtcNow);
+    }
+
+    private sealed record DetailJumpLink(string Anchor, string Label);
+}

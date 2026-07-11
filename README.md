@@ -1,4 +1,4 @@
-# Specpen
+# SpecTen
 
 Blazor Web App em `.NET 9` para catalogar celulares com specs, fontes, score de confianca, classificador por benchmark/chipset e comparacao publica.
 
@@ -15,7 +15,7 @@ Blazor Web App em `.NET 9` para catalogar celulares com specs, fontes, score de 
 Configure um PostgreSQL local:
 
 ```text
-Host=localhost;Port=5432;Database=specpen;Username=postgres;Password=postgres
+Host=localhost;Port=5432;Database=specten;Username=postgres;Password=postgres
 ```
 
 Depois:
@@ -23,7 +23,7 @@ Depois:
 ```bash
 dotnet restore
 dotnet test
-dotnet run --project src/Specpen.Web
+dotnet run --project src/SpecTen.Web
 ```
 
 O ambiente de desenvolvimento pode usar adapters de fixture. O perfil de producao os mantem desligados e usa o seed versionado, cobertura sob demanda e fontes oficiais habilitadas.
@@ -37,7 +37,7 @@ DATABASE_URL=postgresql://...
 Scraping__Enabled=false
 Scraping__UseFixtureAdapters=false
 Scraping__DailyUtcHour=6
-Scraping__UserAgent=SpecpenBot/1.0 (+https://seu-dominio/robots.txt)
+Scraping__UserAgent=SpecTenBot/1.0 (+https://seu-dominio/robots.txt)
 Coverage__Enabled=true
 Coverage__OnDemandHydrationEnabled=true
 Coverage__MakerPageLimit=24
@@ -49,7 +49,7 @@ Mantenha `Scraping__Enabled=false` ate registrar e revisar permissao, robots e l
 
 ## Busca sob demanda e cache
 
-O fluxo publico recomendado para o Specpen fica assim:
+O fluxo publico recomendado para o SpecTen fica assim:
 
 - `PostgreSQL` continua sendo a fonte de verdade do catalogo publicado.
 - A busca publica tenta o banco primeiro e usa cobertura remota quando o modelo nao existe ou quando a ficha local esta velha, incompleta ou suspeita.
