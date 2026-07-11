@@ -4,6 +4,7 @@
 @inject CatalogService Catalog
 @inject CompareSelectionState CompareSelection
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Comparar celulares</PageTitle>
 <HeadContent>
@@ -61,8 +62,8 @@
             <label for="compare-search">Buscar e adicionar modelos</label>
             <div class="search-input-shell">
                 <input id="compare-search"
+                       @ref="SearchInputElement"
                        value="@SearchText"
-                       @oninput="OnSearchChanged"
                        @onfocus="OnSearchFocused"
                        @onblur="OnSearchBlur"
                        @onkeydown="OnSearchKeyDown"
@@ -498,6 +499,9 @@ else
     private bool HasRequestedIds { get; set; }
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _suggestionCloseCts;
+    private long _searchRefreshVersion;
+    private ElementReference SearchInputElement;
+    private DotNetObjectReference<Compare>? _searchInputReference;
     private bool IsSuggestionPanelOpen { get; set; }
     private bool IsBuilderExpanded { get; set; } = true;
     private Dictionary<string, bool> MobileSectionExpanded { get; } = new(StringComparer.Ordinal);
@@ -597,6 +601,9 @@ else
             return;
         }
 
+        _searchInputReference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("spectenSearchInput.connect", SearchInputElement, _searchInputReference, SearchDebounceMilliseconds);
+
         var restoredSelection = await CompareSelection.EnsureHydratedAsync();
         if (restoredSelection &&
             !HasRequestedIds &&
@@ -616,21 +623,23 @@ else
         }
     }
 
-    private async Task OnSearchChanged(ChangeEventArgs args)
+    [JSInvokable]
+    public void OnSearchInput(string searchText)
     {
-        SearchText = args.Value?.ToString()?.TrimStart() ?? "";
+        SearchText = searchText;
         if (!string.IsNullOrWhiteSpace(SearchText))
         {
             OpenSuggestionPanel();
         }
 
-        await QueueSearchRefreshAsync();
+        StartSearchRefresh();
     }
 
-    private async Task OnSearchFocused(FocusEventArgs _)
+    private Task OnSearchFocused(FocusEventArgs _)
     {
         OpenSuggestionPanel();
-        await RefreshSuggestionsAsync(CancellationToken.None);
+        StartSearchRefresh();
+        return Task.CompletedTask;
     }
 
     private async Task OnSearchBlur(FocusEventArgs _)
@@ -806,9 +815,16 @@ else
         IsBuilderExpanded = false;
     }
 
+    private void StartSearchRefresh()
+    {
+        _ = QueueSearchRefreshAsync();
+    }
+
     private async Task QueueSearchRefreshAsync()
     {
         CancelPendingSearchRefresh(clearBusyState: false);
+        var refreshVersion = _searchRefreshVersion;
+        var searchText = SearchText;
         if (string.IsNullOrWhiteSpace(SearchText))
         {
             Suggestions = [];
@@ -824,8 +840,15 @@ else
 
         try
         {
-            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
-            await RefreshSuggestionsAsync(debounceCts.Token);
+            var suggestions = await LoadSuggestionsAsync(searchText, debounceCts.Token);
+            if (refreshVersion != _searchRefreshVersion ||
+                !ReferenceEquals(_searchDebounceCts, debounceCts))
+            {
+                return;
+            }
+
+            Suggestions = suggestions;
+            ResetSuggestionSelection();
         }
         catch (OperationCanceledException) when (debounceCts.IsCancellationRequested)
         {
@@ -843,12 +866,11 @@ else
         }
     }
 
-    private async Task RefreshSuggestionsAsync(CancellationToken cancellationToken)
+    private Task<IReadOnlyList<PhoneSuggestionDto>> LoadSuggestionsAsync(string searchText, CancellationToken cancellationToken)
     {
-        Suggestions = string.IsNullOrWhiteSpace(SearchText)
-            ? []
-            : await Catalog.SuggestForLiveDiscoveryAsync(SearchText, 8, cancellationToken);
-        ResetSuggestionSelection();
+        return string.IsNullOrWhiteSpace(searchText)
+            ? Task.FromResult<IReadOnlyList<PhoneSuggestionDto>>([])
+            : Catalog.SuggestForLiveDiscoveryAsync(searchText, 8, cancellationToken);
     }
 
     private async Task ActivateActiveSuggestionAsync()
@@ -980,6 +1002,7 @@ else
 
     private void CancelPendingSearchRefresh(bool clearBusyState)
     {
+        _searchRefreshVersion++;
         _searchDebounceCts?.Cancel();
         _searchDebounceCts = null;
 
@@ -1425,6 +1448,7 @@ else
 
     public void Dispose()
     {
+        _searchInputReference?.Dispose();
         CancelPendingSearchRefresh(clearBusyState: false);
         CancelPendingSuggestionClose();
     }

@@ -6,9 +6,11 @@
          onerror="this.classList.add('is-hidden'); var host = this.closest('.media-frame'); if (host) { host.classList.add('image-failed'); }" />
 }
 
-<div class="media-placeholder @(HasImage ? "fallback-hidden" : null)">
-    <span>@Brand</span>
-    <strong>@Model</strong>
+<div class="media-placeholder @(HasImage ? "fallback-hidden" : null)" aria-label="Imagem do aparelho em verificacao">
+    <span class="media-placeholder-label">Imagem em verificacao</span>
+    <span class="media-placeholder-icon" aria-hidden="true">SP</span>
+    <strong>@Brand @Model</strong>
+    <small>Estamos confirmando uma imagem publica para esta ficha.</small>
 </div>
 
 @code {

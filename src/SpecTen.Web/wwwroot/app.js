@@ -89,3 +89,25 @@ window.spectenViewport = {
         element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 };
+
+window.spectenSearchInput = {
+    connect(input, dotNetReference, delayMilliseconds) {
+        if (!input || input.dataset.spectenSearchConnected === "true") {
+            return;
+        }
+
+        let debounceHandle;
+        const notify = () => {
+            window.clearTimeout(debounceHandle);
+            debounceHandle = undefined;
+            dotNetReference.invokeMethodAsync("OnSearchInput", input.value);
+        };
+        const onInput = () => {
+            window.clearTimeout(debounceHandle);
+            debounceHandle = window.setTimeout(notify, delayMilliseconds);
+        };
+
+        input.addEventListener("input", onInput);
+        input.dataset.spectenSearchConnected = "true";
+    }
+};

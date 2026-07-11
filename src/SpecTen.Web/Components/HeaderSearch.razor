@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject CatalogService Catalog
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <div class="topbar-search-shell">
     <button class="button subtle compact topbar-search-toggle"
@@ -14,8 +15,8 @@
         <label class="visually-hidden" for="topbar-search-input">Buscar em qualquer pagina</label>
         <div class="search-input-shell topbar-search-row">
             <input id="topbar-search-input"
+                   @ref="SearchInputElement"
                    value="@SearchText"
-                   @oninput="OnSearchChanged"
                    @onfocus="OnSearchFocused"
                    @onblur="OnSearchBlur"
                    @onkeydown="OnSearchKeyDown"
@@ -79,27 +80,43 @@
 
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _suggestionCloseCts;
+    private long _searchRefreshVersion;
+    private ElementReference SearchInputElement;
+    private DotNetObjectReference<HeaderSearch>? _searchInputReference;
 
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += OnLocationChanged;
     }
 
-    private async Task OnSearchChanged(ChangeEventArgs args)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        SearchText = args.Value?.ToString()?.TrimStart() ?? "";
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _searchInputReference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("spectenSearchInput.connect", SearchInputElement, _searchInputReference, SearchDebounceMilliseconds);
+    }
+
+    [JSInvokable]
+    public void OnSearchInput(string searchText)
+    {
+        SearchText = searchText;
         if (!string.IsNullOrWhiteSpace(SearchText))
         {
             OpenSuggestionPanel();
         }
 
-        await QueueSearchRefreshAsync();
+        StartSearchRefresh();
     }
 
-    private async Task OnSearchFocused(FocusEventArgs _)
+    private Task OnSearchFocused(FocusEventArgs _)
     {
         OpenSuggestionPanel();
-        await RefreshSuggestionsAsync(CancellationToken.None);
+        StartSearchRefresh();
+        return Task.CompletedTask;
     }
 
     private async Task OnSearchBlur(FocusEventArgs _)
@@ -145,9 +162,16 @@
         }
     }
 
+    private void StartSearchRefresh()
+    {
+        _ = QueueSearchRefreshAsync();
+    }
+
     private async Task QueueSearchRefreshAsync()
     {
         CancelPendingSearchRefresh();
+        var refreshVersion = _searchRefreshVersion;
+        var searchText = SearchText;
         if (string.IsNullOrWhiteSpace(SearchText))
         {
             Suggestions = [];
@@ -160,8 +184,15 @@
 
         try
         {
-            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
-            await RefreshSuggestionsAsync(debounceCts.Token);
+            var suggestions = await LoadSuggestionsAsync(searchText, debounceCts.Token);
+            if (refreshVersion != _searchRefreshVersion ||
+                !ReferenceEquals(_searchDebounceCts, debounceCts))
+            {
+                return;
+            }
+
+            Suggestions = suggestions;
+            ResetSuggestionSelection();
         }
         catch (OperationCanceledException) when (debounceCts.IsCancellationRequested)
         {
@@ -177,12 +208,11 @@
         }
     }
 
-    private async Task RefreshSuggestionsAsync(CancellationToken cancellationToken)
+    private Task<IReadOnlyList<PhoneSuggestionDto>> LoadSuggestionsAsync(string searchText, CancellationToken cancellationToken)
     {
-        Suggestions = string.IsNullOrWhiteSpace(SearchText)
-            ? []
-            : await Catalog.SuggestForLiveDiscoveryAsync(SearchText, 6, cancellationToken);
-        ResetSuggestionSelection();
+        return string.IsNullOrWhiteSpace(searchText)
+            ? Task.FromResult<IReadOnlyList<PhoneSuggestionDto>>([])
+            : Catalog.SuggestForLiveDiscoveryAsync(searchText, 6, cancellationToken);
     }
 
     private async Task ActivateActiveSuggestionAsync()
@@ -296,6 +326,7 @@
 
     private void CancelPendingSearchRefresh()
     {
+        _searchRefreshVersion++;
         _searchDebounceCts?.Cancel();
         _searchDebounceCts = null;
     }
@@ -336,6 +367,7 @@
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
+        _searchInputReference?.Dispose();
         CancelPendingSearchRefresh();
         CancelPendingSuggestionClose();
     }

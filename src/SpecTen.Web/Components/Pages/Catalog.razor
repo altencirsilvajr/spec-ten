@@ -5,6 +5,7 @@
 @inject CompareSelectionState CompareSelection
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Catalogo de celulares</PageTitle>
 <HeadContent>
@@ -15,8 +16,8 @@
 <section class="catalog-hero tool-hero @(IsCatalogHeroCompact ? "compact" : null)">
     <div>
         <p class="eyebrow">Catalogo publico</p>
-        <h1 class="page-title">Encontre o modelo certo sem sofrer na responsividade.</h1>
-        <p class="page-lede">Busca por nome, marca ou chipset, cobertura ampliada para modelos recentes e ficha tecnica organizada para celular e desktop.</p>
+        <h1 class="page-title">Encontre o celular certo com informacoes em que voce pode confiar.</h1>
+        <p class="page-lede">Pesquise por nome, marca ou chipset, compare dados organizados e acompanhe claramente quando uma ficha ainda esta sendo preparada.</p>
     </div>
 </section>
 
@@ -26,8 +27,8 @@
             <label for="catalog-search">Buscar aparelho</label>
             <div class="search-input-shell">
                 <input id="catalog-search"
+                       @ref="SearchInputElement"
                        value="@SearchText"
-                       @oninput="OnSearchChanged"
                        @onfocus="OnSearchFocused"
                        @onblur="OnSearchBlur"
                        @onkeydown="OnSearchKeyDown"
@@ -622,6 +623,8 @@ else
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _suggestionCloseCts;
     private long _searchRefreshVersion;
+    private ElementReference SearchInputElement;
+    private DotNetObjectReference<Catalog>? _searchInputReference;
     private bool IsSuggestionPanelOpen { get; set; }
     private bool IsMobileFiltersOpen { get; set; }
 
@@ -716,6 +719,9 @@ else
             return;
         }
 
+        _searchInputReference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("spectenSearchInput.connect", SearchInputElement, _searchInputReference, SearchDebounceMilliseconds);
+
         if (!await CompareSelection.EnsureHydratedAsync())
         {
             return;
@@ -729,21 +735,23 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnSearchChanged(ChangeEventArgs args)
+    [JSInvokable]
+    public void OnSearchInput(string searchText)
     {
-        SearchText = args.Value?.ToString() ?? "";
+        SearchText = searchText;
         if (!string.IsNullOrWhiteSpace(SearchText))
         {
             OpenSuggestionPanel();
         }
 
-        await QueueSearchRefreshAsync();
+        StartSearchRefresh();
     }
 
-    private async Task OnSearchFocused(FocusEventArgs _)
+    private Task OnSearchFocused(FocusEventArgs _)
     {
         OpenSuggestionPanel();
-        await RefreshSuggestionsAsync(CancellationToken.None);
+        StartSearchRefresh();
+        return Task.CompletedTask;
     }
 
     private async Task OnSearchBlur(FocusEventArgs _)
@@ -983,6 +991,11 @@ else
         return targetUrl;
     }
 
+    private void StartSearchRefresh()
+    {
+        _ = QueueSearchRefreshAsync();
+    }
+
     private async Task QueueSearchRefreshAsync()
     {
         CancelPendingSearchRefresh(clearBusyState: false);
@@ -1010,7 +1023,6 @@ else
 
         try
         {
-            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
             var refresh = await LoadSearchRefreshAsync(searchText, debounceCts.Token);
             if (refreshVersion != _searchRefreshVersion ||
                 !ReferenceEquals(_searchDebounceCts, debounceCts))
@@ -1040,7 +1052,7 @@ else
 
     private async Task RefreshCatalogAsync(CancellationToken cancellationToken)
     {
-        var phones = await CatalogService.SearchForLiveDiscoveryAsync(
+        var phones = await CatalogService.SearchAsync(
             SearchText,
             ParseTier(SelectedTierKey),
             SelectedBrandSlug,
@@ -1064,7 +1076,7 @@ else
 
     private async Task<SearchRefreshResult> LoadSearchRefreshAsync(string searchText, CancellationToken cancellationToken)
     {
-        var phones = await CatalogService.SearchForLiveDiscoveryAsync(
+        var phones = await CatalogService.SearchAsync(
             searchText,
             ParseTier(SelectedTierKey),
             SelectedBrandSlug,
@@ -1769,6 +1781,7 @@ else
 
     public void Dispose()
     {
+        _searchInputReference?.Dispose();
         CancelPendingSearchRefresh(clearBusyState: false);
         CancelPendingSuggestionClose();
     }
