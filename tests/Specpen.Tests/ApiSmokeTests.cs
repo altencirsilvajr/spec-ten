@@ -216,6 +216,31 @@ public sealed class ApiSmokeTests(SpecpenWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task LiveDiscovery_ReturnsExactCoverageWithoutHydratingDuringTyping()
+    {
+        await using var discoveryFactory = new SpecpenWebApplicationFactory();
+        await discoveryFactory.InitializeAsync();
+        var catalog = discoveryFactory.Services.GetRequiredService<CatalogService>();
+        TestDeviceCoverageService.ResetObservedRequests();
+
+        var results = await catalog.SearchForLiveDiscoveryAsync(
+            "vivo x300 ultra",
+            null,
+            null,
+            CatalogSortOption.Relevance,
+            8,
+            CancellationToken.None);
+        var suggestions = await catalog.SuggestForLiveDiscoveryAsync("vivo x300 ultra", 8, CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.Equal("Vivo", result.Brand);
+        Assert.Equal("X300 Ultra", result.Name);
+        Assert.False(result.HasFullCatalogEntry);
+        Assert.Contains(suggestions, item => item.Name == "X300 Ultra" && !item.HasFullCatalogEntry);
+        Assert.Empty(TestDeviceCoverageService.ObservedRequests());
+    }
+
+    [Fact]
     public async Task SearchApi_DoesNotLeakIrrelevantCoverageFallbacks_WhenQueryIsSpecific()
     {
         var client = factory.CreateClient();

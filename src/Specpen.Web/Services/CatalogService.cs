@@ -136,6 +136,35 @@ public sealed partial class CatalogService(
         }) ?? [];
     }
 
+    public async Task<IReadOnlyList<PhoneSearchResult>> SearchForLiveDiscoveryAsync(
+        string? query,
+        ClassificationTier? tier,
+        string? brandSlug,
+        CatalogSortOption sort,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (limit <= 0)
+        {
+            return [];
+        }
+
+        var normalizedBrand = string.IsNullOrWhiteSpace(brandSlug) ? string.Empty : Slugger.Slugify(brandSlug);
+        var cacheKey = $"catalog:live-search:{PhoneSearchText.Normalize(query)}:{tier?.ToString() ?? "all"}:{normalizedBrand}:{sort}:{limit}";
+
+        return await cache.GetOrCreateAsync(cacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = SearchCacheDuration;
+
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            var phones = await SearchQuery(db).ToListAsync(cancellationToken);
+            var localResults = BuildSearchResults(phones, query, tier, brandSlug, sort, Math.Max(limit, 80));
+            var coverageResults = await SearchCoverageFallbackAsync(query, tier, brandSlug, limit, localResults, cancellationToken);
+
+            return (IReadOnlyList<PhoneSearchResult>)MergeSearchResults(localResults, coverageResults, query, limit);
+        }) ?? [];
+    }
+
     public async Task<IReadOnlyList<PhoneSuggestionDto>> SuggestAsync(
         string? query,
         int limit,
@@ -165,6 +194,45 @@ public sealed partial class CatalogService(
                 coverageResults = await SearchCoverageFallbackAsync(query, null, null, limit, localResults, cancellationToken);
             }
 
+            var results = MergeSearchResults(localResults, coverageResults, query, limit);
+
+            return (IReadOnlyList<PhoneSuggestionDto>)results
+                .Where(result => result.HasFullCatalogEntry || IsSuggestionFriendlyCoverage(result))
+                .Take(limit)
+                .Select(result => new PhoneSuggestionDto(
+                    result.Id,
+                    result.Brand,
+                    result.BrandSlug,
+                    result.Name,
+                    result.Slug,
+                    result.Tier,
+                    result.Chipset,
+                    result.ReleasedAt,
+                    result.HasFullCatalogEntry,
+                    result.IsPublicReady))
+                .ToList();
+        }) ?? [];
+    }
+
+    public async Task<IReadOnlyList<PhoneSuggestionDto>> SuggestForLiveDiscoveryAsync(
+        string? query,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (limit <= 0)
+        {
+            return [];
+        }
+
+        var cacheKey = $"catalog:live-suggest:{PhoneSearchText.Normalize(query)}:{limit}";
+        return await cache.GetOrCreateAsync(cacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = SuggestionCacheDuration;
+
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            var phones = await SearchQuery(db).ToListAsync(cancellationToken);
+            var localResults = BuildSearchResults(phones, query, null, null, CatalogSortOption.Relevance, Math.Max(limit, 24));
+            var coverageResults = await SearchCoverageFallbackAsync(query, null, null, limit, localResults, cancellationToken);
             var results = MergeSearchResults(localResults, coverageResults, query, limit);
 
             return (IReadOnlyList<PhoneSuggestionDto>)results

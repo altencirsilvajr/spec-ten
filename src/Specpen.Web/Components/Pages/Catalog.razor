@@ -1008,7 +1008,7 @@ else
 
     private async Task RefreshCatalogAsync(CancellationToken cancellationToken)
     {
-        var phones = await CatalogService.SearchAsync(
+        var phones = await CatalogService.SearchForLiveDiscoveryAsync(
             SearchText,
             ParseTier(SelectedTierKey),
             SelectedBrandSlug,
@@ -1032,7 +1032,7 @@ else
 
     private async Task<SearchRefreshResult> LoadSearchRefreshAsync(string searchText, CancellationToken cancellationToken)
     {
-        var phones = await CatalogService.SearchAsync(
+        var phones = await CatalogService.SearchForLiveDiscoveryAsync(
             searchText,
             ParseTier(SelectedTierKey),
             SelectedBrandSlug,
@@ -1041,7 +1041,7 @@ else
             cancellationToken);
         var suggestions = string.IsNullOrWhiteSpace(searchText)
             ? []
-            : await CatalogService.SuggestAsync(searchText, 8, cancellationToken);
+            : await CatalogService.SuggestForLiveDiscoveryAsync(searchText, 8, cancellationToken);
 
         return new SearchRefreshResult(phones, suggestions);
     }
@@ -1157,7 +1157,7 @@ else
     {
         Suggestions = string.IsNullOrWhiteSpace(SearchText)
             ? []
-            : await CatalogService.SuggestAsync(SearchText, 8, cancellationToken);
+            : await CatalogService.SuggestForLiveDiscoveryAsync(SearchText, 8, cancellationToken);
         ResetSuggestionSelection();
     }
 

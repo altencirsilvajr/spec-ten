@@ -181,7 +181,7 @@
     {
         Suggestions = string.IsNullOrWhiteSpace(SearchText)
             ? []
-            : await Catalog.SuggestAsync(SearchText, 6, cancellationToken);
+            : await Catalog.SuggestForLiveDiscoveryAsync(SearchText, 6, cancellationToken);
         ResetSuggestionSelection();
     }
 
