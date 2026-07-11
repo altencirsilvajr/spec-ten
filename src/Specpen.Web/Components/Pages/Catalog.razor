@@ -585,7 +585,7 @@ else
         new("confidence", "Maior confianca"),
         new("name", "Nome A-Z"),
     ];
-    private const int SearchDebounceMilliseconds = 180;
+    private const int SearchDebounceMilliseconds = 250;
     private const int SuggestionCloseDelayMilliseconds = 120;
     private const int BrowseSectionInitialSize = 4;
     private const int FilteredSectionInitialSize = 8;
@@ -609,6 +609,7 @@ else
     private bool IsSearchRefreshing { get; set; }
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _suggestionCloseCts;
+    private long _searchRefreshVersion;
     private bool IsSuggestionPanelOpen { get; set; }
     private bool IsMobileFiltersOpen { get; set; }
 
@@ -711,7 +712,7 @@ else
 
     private async Task OnSearchChanged(ChangeEventArgs args)
     {
-        SearchText = args.Value?.ToString()?.TrimStart() ?? "";
+        SearchText = args.Value?.ToString() ?? "";
         if (!string.IsNullOrWhiteSpace(SearchText))
         {
             OpenSuggestionPanel();
@@ -953,12 +954,19 @@ else
     private async Task QueueSearchRefreshAsync()
     {
         CancelPendingSearchRefresh(clearBusyState: false);
+        var refreshVersion = _searchRefreshVersion;
+        var searchText = SearchText;
         if (string.IsNullOrWhiteSpace(SearchText))
         {
+            var refresh = await LoadSearchRefreshAsync(searchText, CancellationToken.None);
+            if (refreshVersion != _searchRefreshVersion)
+            {
+                return;
+            }
+
+            ApplyCatalogResults(refresh.Phones);
             Suggestions = [];
             ActiveSuggestionIndex = -1;
-            await RefreshCatalogAsync(CancellationToken.None);
-            SyncFilterUrl();
             IsSearchRefreshing = false;
             return;
         }
@@ -971,9 +979,16 @@ else
         try
         {
             await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
-            await RefreshCatalogAsync(debounceCts.Token);
-            await RefreshSuggestionsAsync(debounceCts.Token);
-            SyncFilterUrl();
+            var refresh = await LoadSearchRefreshAsync(searchText, debounceCts.Token);
+            if (refreshVersion != _searchRefreshVersion ||
+                !ReferenceEquals(_searchDebounceCts, debounceCts))
+            {
+                return;
+            }
+
+            ApplyCatalogResults(refresh.Phones);
+            Suggestions = refresh.Suggestions;
+            ResetSuggestionSelection();
         }
         catch (OperationCanceledException) when (debounceCts.IsCancellationRequested)
         {
@@ -993,13 +1008,19 @@ else
 
     private async Task RefreshCatalogAsync(CancellationToken cancellationToken)
     {
-        Phones = await CatalogService.SearchAsync(
+        var phones = await CatalogService.SearchAsync(
             SearchText,
             ParseTier(SelectedTierKey),
             SelectedBrandSlug,
             ParseSort(SelectedSortKey, SearchText),
             SearchResultLimit,
             cancellationToken);
+        ApplyCatalogResults(phones);
+    }
+
+    private void ApplyCatalogResults(IReadOnlyList<PhoneSearchResult> phones)
+    {
+        Phones = phones;
         Sections = BuildSections(Phones);
         SyncSectionVisibility();
 
@@ -1007,6 +1028,22 @@ else
         {
             CompareSelection.AddOrUpdate(ToCompareSelectionItem(phone), notify: false);
         }
+    }
+
+    private async Task<SearchRefreshResult> LoadSearchRefreshAsync(string searchText, CancellationToken cancellationToken)
+    {
+        var phones = await CatalogService.SearchAsync(
+            searchText,
+            ParseTier(SelectedTierKey),
+            SelectedBrandSlug,
+            ParseSort(SelectedSortKey, searchText),
+            SearchResultLimit,
+            cancellationToken);
+        var suggestions = string.IsNullOrWhiteSpace(searchText)
+            ? []
+            : await CatalogService.SuggestAsync(searchText, 8, cancellationToken);
+
+        return new SearchRefreshResult(phones, suggestions);
     }
 
     private IReadOnlyList<PhoneSearchResult> VisibleSectionPhones(CatalogSectionViewModel section)
@@ -1210,6 +1247,7 @@ else
 
     private void CancelPendingSearchRefresh(bool clearBusyState)
     {
+        _searchRefreshVersion++;
         _searchDebounceCts?.Cancel();
         _searchDebounceCts = null;
 
@@ -1676,6 +1714,9 @@ else
     private sealed record FilterOption(string Key, string Label);
     private sealed record ActiveFilterViewModel(string Key, string Label);
     private sealed record SearchAssistViewModel(string Title, string Message, string Tone);
+    private sealed record SearchRefreshResult(
+        IReadOnlyList<PhoneSearchResult> Phones,
+        IReadOnlyList<PhoneSuggestionDto> Suggestions);
 
     private sealed record CatalogSectionViewModel(
         string Title,

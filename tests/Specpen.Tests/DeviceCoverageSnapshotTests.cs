@@ -16,6 +16,47 @@ namespace Specpen.Tests;
 public sealed class DeviceCoverageSnapshotTests
 {
     [Fact]
+    public async Task SearchAsync_MatchesPocoSubbrandInXiaomiSnapshot()
+    {
+        var workingDirectory = Directory.CreateTempSubdirectory("coverage-snapshot-tests");
+        try
+        {
+            var snapshotPath = Path.Combine(workingDirectory.FullName, "coverage-index.snapshot.json");
+            await File.WriteAllTextAsync(snapshotPath, BuildSnapshotJson(
+            [
+                new SnapshotEntry(
+                    "Xiaomi",
+                    "xiaomi",
+                    "X6",
+                    "x6",
+                    "xiaomi",
+                    "x6",
+                    "xiaomix6",
+                    "x6",
+                    28,
+                    "GSMArena",
+                    "https://www.gsmarena.com/xiaomi_poco_x6-12723.php"),
+            ]));
+
+            await using var harness = await CreateHarnessAsync(
+                workingDirectory.FullName,
+                snapshotPath,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+
+            var results = await harness.Service.SearchAsync("Poco X6", null, 5, CancellationToken.None);
+
+            var match = Assert.Single(results);
+            Assert.Equal("Xiaomi", match.Brand);
+            Assert.Equal("Poco X6", match.Name);
+            Assert.Equal("x6", match.Slug);
+        }
+        finally
+        {
+            workingDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_UsesSnapshot_WhenLiveIndexIsUnavailable()
     {
         var workingDirectory = Directory.CreateTempSubdirectory("coverage-snapshot-tests");

@@ -955,7 +955,7 @@ public sealed partial class DeviceCoverageService(
 
         var slugPart = fileName[..fileName.LastIndexOf('-')];
         var brand = ResolveBrand(slugPart);
-        var modelName = BuildModelName(slugPart, brand);
+        var modelName = CanonicalizeSubBrandModelName(brand, BuildModelName(slugPart, brand), uri.ToString());
         if (!LooksLikePhone(brand, modelName))
         {
             return null;
@@ -1398,6 +1398,18 @@ public sealed partial class DeviceCoverageService(
                 .Select(FormatToken));
 
         return PhoneNameFormatter.ModelName(brand, formatted);
+    }
+
+    private static string CanonicalizeSubBrandModelName(string brand, string modelName, string? sourceUrl)
+    {
+        if (brand.Equals("Xiaomi", StringComparison.OrdinalIgnoreCase) &&
+            sourceUrl?.Contains("_poco_", StringComparison.OrdinalIgnoreCase) == true &&
+            !modelName.StartsWith("Poco ", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Poco {modelName}";
+        }
+
+        return modelName;
     }
 
     private static string FormatToken(string token)
@@ -1851,19 +1863,27 @@ public sealed partial class DeviceCoverageService(
         string? SourceUrl)
     {
         public CoverageEntry ToCoverageEntry()
-            => new(
+        {
+            var name = CanonicalizeSubBrandModelName(Brand, Name, SourceUrl);
+            var normalizedBrand = PhoneSearchText.Normalize(Brand);
+            var normalizedName = PhoneSearchText.Normalize(name);
+            var normalizedFullName = PhoneSearchText.Normalize($"{Brand} {name}");
+            var comparableName = NormalizeComparableText(name);
+
+            return new CoverageEntry(
                 Brand,
                 BrandSlug,
-                Name,
+                name,
                 Slug,
-                NormalizedBrand,
-                NormalizedName,
-                NormalizedFullName,
-                ComparableName,
-                BuildCoverageFields(Brand, Name, NormalizedBrand, NormalizedName, NormalizedFullName, ComparableName),
+                normalizedBrand,
+                normalizedName,
+                normalizedFullName,
+                comparableName,
+                BuildCoverageFields(Brand, name, normalizedBrand, normalizedName, normalizedFullName, comparableName),
                 QualityScore,
                 SourceName,
                 SourceUrl);
+        }
 
         public static CoverageSnapshotEntry FromCoverageEntry(CoverageEntry entry)
             => new(
