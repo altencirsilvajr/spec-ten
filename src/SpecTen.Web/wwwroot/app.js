@@ -92,15 +92,35 @@ window.spectenViewport = {
 
 window.spectenSearchInput = {
     connect(input, dotNetReference, delayMilliseconds) {
-        if (!input || input.dataset.spectenSearchConnected === "true") {
+        if (!input || !input.dataset || !dotNetReference || input.dataset.spectenSearchConnected === "true") {
             return;
         }
 
         let debounceHandle;
+        let connected = true;
+        const disconnect = () => {
+            if (!connected) {
+                return;
+            }
+
+            connected = false;
+            window.clearTimeout(debounceHandle);
+            input.removeEventListener("input", onInput);
+            input.removeEventListener("blur", onBlur);
+            input.removeEventListener("keydown", onKeyDown);
+            delete input.dataset.spectenSearchConnected;
+        };
+        const invoke = (method, ...args) => {
+            if (!connected) {
+                return;
+            }
+
+            dotNetReference.invokeMethodAsync(method, ...args).catch(disconnect);
+        };
         const notify = () => {
             window.clearTimeout(debounceHandle);
             debounceHandle = undefined;
-            dotNetReference.invokeMethodAsync("OnSearchInput", input.value);
+            invoke("OnSearchInput", input.value);
         };
         const onInput = () => {
             window.clearTimeout(debounceHandle);
@@ -109,7 +129,7 @@ window.spectenSearchInput = {
         const onBlur = () => {
             window.clearTimeout(debounceHandle);
             debounceHandle = undefined;
-            dotNetReference.invokeMethodAsync("OnSearchBlur", input.value);
+            invoke("OnSearchBlur", input.value);
         };
         const onKeyDown = (event) => {
             if (![
@@ -124,7 +144,7 @@ window.spectenSearchInput = {
             event.preventDefault();
             window.clearTimeout(debounceHandle);
             debounceHandle = undefined;
-            dotNetReference.invokeMethodAsync("OnSearchKey", event.key, input.value);
+            invoke("OnSearchKey", event.key, input.value);
         };
 
         input.addEventListener("input", onInput);

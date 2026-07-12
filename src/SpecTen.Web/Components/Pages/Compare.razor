@@ -517,6 +517,7 @@ else
     private bool HasVisibleRows => VisibleRows.Count > 0;
     private bool HasMissingSpecs => VisibleRows.Any(row => row.Values.Values.Contains("-", StringComparer.OrdinalIgnoreCase));
     private bool HasSuggestions => IsSuggestionPanelOpen && SuggestionOptions.Count > 0;
+    private bool IsSearchInputRendered => !CanRenderComparisonTable || IsBuilderExpanded;
     private IReadOnlyList<PhoneSuggestionDto> SelectableSuggestions => Suggestions
         .Where(item => item.IsPublicReady && !SelectedIds.Contains(item.Id))
         .Take(6)
@@ -592,13 +593,16 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (IsSearchInputRendered)
+        {
+            _searchInputReference ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("spectenSearchInput.connect", SearchInputElement, _searchInputReference, SearchDebounceMilliseconds);
+        }
+
         if (!firstRender)
         {
             return;
         }
-
-        _searchInputReference = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("spectenSearchInput.connect", SearchInputElement, _searchInputReference, SearchDebounceMilliseconds);
 
         var restoredSelection = await CompareSelection.EnsureHydratedAsync();
         if (restoredSelection &&

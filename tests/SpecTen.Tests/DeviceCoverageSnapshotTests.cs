@@ -57,6 +57,60 @@ public sealed class DeviceCoverageSnapshotTests
     }
 
     [Fact]
+    public async Task SearchAsync_MatchesRedmiSubbrandAndCommonBrandTypos()
+    {
+        var workingDirectory = Directory.CreateTempSubdirectory("coverage-snapshot-tests");
+        try
+        {
+            var snapshotPath = Path.Combine(workingDirectory.FullName, "coverage-index.snapshot.json");
+            await File.WriteAllTextAsync(snapshotPath, BuildSnapshotJson(
+            [
+                new SnapshotEntry(
+                    "Xiaomi",
+                    "xiaomi",
+                    "Note 7",
+                    "note-7",
+                    "xiaomi",
+                    "note7",
+                    "xiaominote7",
+                    "note7",
+                    28,
+                    "GSMArena",
+                    "https://www.gsmarena.com/xiaomi_redmi_note_7-9513.php"),
+                new SnapshotEntry(
+                    "Xiaomi",
+                    "xiaomi",
+                    "15",
+                    "15",
+                    "xiaomi",
+                    "15",
+                    "xiaomi15",
+                    "15",
+                    28,
+                    "GSMArena",
+                    "https://www.gsmarena.com/xiaomi_15-13472.php"),
+            ]));
+
+            await using var harness = await CreateHarnessAsync(
+                workingDirectory.FullName,
+                snapshotPath,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+
+            var redmiResults = await harness.Service.SearchAsync("Redmi Note 7", null, 5, CancellationToken.None);
+            var transposedBrandResults = await harness.Service.SearchAsync("Xioami 15", null, 5, CancellationToken.None);
+            var omittedBrandLetterResults = await harness.Service.SearchAsync("Xaumi 15", null, 5, CancellationToken.None);
+
+            Assert.Contains(redmiResults, result => result.Slug == "note-7");
+            Assert.Contains(transposedBrandResults, result => result.Slug == "15");
+            Assert.Contains(omittedBrandLetterResults, result => result.Slug == "15");
+        }
+        finally
+        {
+            workingDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_UsesSnapshot_WhenLiveIndexIsUnavailable()
     {
         var workingDirectory = Directory.CreateTempSubdirectory("coverage-snapshot-tests");

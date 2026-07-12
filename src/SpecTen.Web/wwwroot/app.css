@@ -654,6 +654,7 @@ main {
 
 .button {
     min-height: 44px;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -663,6 +664,8 @@ main {
     background: var(--surface);
     color: var(--text);
     font-weight: 900;
+    overflow-wrap: anywhere;
+    text-align: center;
     cursor: pointer;
     transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
 }
@@ -1376,10 +1379,12 @@ main {
 
 .card-actions {
     justify-content: space-between;
+    flex-wrap: wrap;
 }
 
 .card-actions .button {
-    flex: 1 1 0;
+    flex: 1 1 140px;
+    min-width: 0;
 }
 
 .coverage-meter {
@@ -2238,6 +2243,18 @@ main {
 
     .side-panel {
         position: static;
+    }
+}
+
+@media (max-width: 1080px) {
+    .phone-hero,
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .phone-photo {
+        min-height: 240px;
+        max-height: 360px;
     }
 }
 

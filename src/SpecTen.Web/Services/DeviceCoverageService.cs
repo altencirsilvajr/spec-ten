@@ -225,8 +225,7 @@ public sealed partial class DeviceCoverageService(
             }
         }
 
-        if (LooksLikeSpecificDeviceQuery(query) &&
-            !HasExactCoverageMatch(indexResults, query))
+        if (LooksLikeSpecificDeviceQuery(query) && indexResults.Count == 0)
         {
             var directIndex = await LoadDirectSearchIndexAsync(query, cancellationToken);
             var directResults = SearchIndexEntries(directIndex, normalizedBrand, normalizedQuery, tokens, limit);
@@ -237,8 +236,7 @@ public sealed partial class DeviceCoverageService(
             }
         }
 
-        if (LooksLikeSpecificDeviceQuery(query) &&
-            !HasExactCoverageMatch(indexResults, query))
+        if (LooksLikeSpecificDeviceQuery(query) && indexResults.Count == 0)
         {
             var makerIndex = await LoadMakerBrandIndexAsync(query, normalizedBrand, index, cancellationToken);
             var makerResults = SearchIndexEntries(makerIndex, normalizedBrand, normalizedQuery, tokens, limit);
@@ -972,7 +970,7 @@ public sealed partial class DeviceCoverageService(
         var normalizedName = PhoneSearchText.Normalize(modelName);
         var normalizedFullName = PhoneSearchText.Normalize($"{brand} {modelName}");
         var comparableName = NormalizeComparableText(modelName);
-        var fields = BuildCoverageFields(brand, modelName, normalizedBrand, normalizedName, normalizedFullName, comparableName);
+        var fields = BuildCoverageFields(brand, modelName, normalizedBrand, normalizedName, normalizedFullName, comparableName, uri.ToString());
 
         return new CoverageEntry(
             brand,
@@ -1311,6 +1309,10 @@ public sealed partial class DeviceCoverageService(
 
             var comparableToken = NormalizeComparableText(token);
             var tokenScore = EvaluateCoverageTokenMatchScore(entry.Fields, token, comparableToken);
+            if (tokenScore == 0)
+            {
+                tokenScore = EvaluateFuzzyCoverageTokenMatchScore(entry.Fields, token, comparableToken);
+            }
 
             if (tokenScore == 0)
             {
@@ -1367,6 +1369,68 @@ public sealed partial class DeviceCoverageService(
         }
 
         return score;
+    }
+
+    private static int EvaluateFuzzyCoverageTokenMatchScore(
+        IEnumerable<string> fields,
+        string token,
+        string comparableToken)
+    {
+        var candidateToken = comparableToken.Length > 0 ? comparableToken : token;
+        if (candidateToken.Length < 4 || candidateToken.All(char.IsDigit))
+        {
+            return 0;
+        }
+
+        return fields.Any(field => IsWithinFuzzyDistance(field, candidateToken, 2)) ? 54 : 0;
+    }
+
+    private static bool IsWithinFuzzyDistance(string left, string right, int maximumDistance)
+    {
+        if (Math.Abs(left.Length - right.Length) > maximumDistance)
+        {
+            return false;
+        }
+
+        var distances = new int[left.Length + 1, right.Length + 1];
+        for (var leftIndex = 0; leftIndex <= left.Length; leftIndex++)
+        {
+            distances[leftIndex, 0] = leftIndex;
+        }
+
+        for (var rightIndex = 0; rightIndex <= right.Length; rightIndex++)
+        {
+            distances[0, rightIndex] = rightIndex;
+        }
+
+        for (var leftIndex = 1; leftIndex <= left.Length; leftIndex++)
+        {
+            var rowMinimum = int.MaxValue;
+            for (var rightIndex = 1; rightIndex <= right.Length; rightIndex++)
+            {
+                var substitutionCost = left[leftIndex - 1] == right[rightIndex - 1] ? 0 : 1;
+                var distance = Math.Min(
+                    Math.Min(distances[leftIndex - 1, rightIndex] + 1, distances[leftIndex, rightIndex - 1] + 1),
+                    distances[leftIndex - 1, rightIndex - 1] + substitutionCost);
+
+                if (leftIndex > 1 && rightIndex > 1 &&
+                    left[leftIndex - 1] == right[rightIndex - 2] &&
+                    left[leftIndex - 2] == right[rightIndex - 1])
+                {
+                    distance = Math.Min(distance, distances[leftIndex - 2, rightIndex - 2] + 1);
+                }
+
+                distances[leftIndex, rightIndex] = distance;
+                rowMinimum = Math.Min(rowMinimum, distance);
+            }
+
+            if (rowMinimum > maximumDistance)
+            {
+                return false;
+            }
+        }
+
+        return distances[left.Length, right.Length] <= maximumDistance;
     }
 
     private static string ResolveBrand(string slugPart)
@@ -1441,7 +1505,8 @@ public sealed partial class DeviceCoverageService(
         string normalizedBrand,
         string normalizedName,
         string normalizedFullName,
-        string comparableName)
+        string comparableName,
+        string? sourceUrl)
     {
         var fields = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -1454,6 +1519,12 @@ public sealed partial class DeviceCoverageService(
         AddCoverageTokenForms(fields, name);
         AddCoverageTokenForms(fields, $"{brand} {name}");
         AddCoverageTokenForms(fields, StripLeadingBrandRaw(name, brand));
+        if (brand.Equals("Xiaomi", StringComparison.OrdinalIgnoreCase) &&
+            sourceUrl?.Contains("_redmi_", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            fields.Add("redmi");
+        }
+
         fields.RemoveWhere(string.IsNullOrWhiteSpace);
         return fields.ToArray();
     }
@@ -1879,7 +1950,7 @@ public sealed partial class DeviceCoverageService(
                 normalizedName,
                 normalizedFullName,
                 comparableName,
-                BuildCoverageFields(Brand, name, normalizedBrand, normalizedName, normalizedFullName, comparableName),
+                BuildCoverageFields(Brand, name, normalizedBrand, normalizedName, normalizedFullName, comparableName, SourceUrl),
                 QualityScore,
                 SourceName,
                 SourceUrl);
