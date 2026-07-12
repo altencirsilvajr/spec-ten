@@ -70,6 +70,7 @@ Os selos automáticos descrevem **desempenho estimado** — basico, equilibrado 
 
 Validado em 11/07/2026 no ambiente de producao:
 
+- URL de validacao atual: `https://spec-ten-production.up.railway.app`.
 - `GET /health` respondeu `200` com o PostgreSQL alcancavel.
 - `GET /api/search?query=poco%20x8%20pro` retornou `Desempenho muito alto` como desempenho e `Intermediario premium` como segmento comercial.
 - `GET /metodologia` respondeu `200` e exibiu a explicacao dos limites da classificacao.
