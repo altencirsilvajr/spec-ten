@@ -225,7 +225,7 @@ public sealed partial class DeviceCoverageService(
             }
         }
 
-        if (LooksLikeSpecificDeviceQuery(query) && indexResults.Count == 0)
+        if (LooksLikeSpecificDeviceQuery(query) && !HasExactCoverageMatch(indexResults, query))
         {
             var directIndex = await LoadDirectSearchIndexAsync(query, cancellationToken);
             var directResults = SearchIndexEntries(directIndex, normalizedBrand, normalizedQuery, tokens, limit);
@@ -236,7 +236,7 @@ public sealed partial class DeviceCoverageService(
             }
         }
 
-        if (LooksLikeSpecificDeviceQuery(query) && indexResults.Count == 0)
+        if (LooksLikeSpecificDeviceQuery(query) && !HasExactCoverageMatch(indexResults, query))
         {
             var makerIndex = await LoadMakerBrandIndexAsync(query, normalizedBrand, index, cancellationToken);
             var makerResults = SearchIndexEntries(makerIndex, normalizedBrand, normalizedQuery, tokens, limit);

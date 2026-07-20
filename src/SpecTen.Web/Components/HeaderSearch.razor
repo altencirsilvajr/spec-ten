@@ -3,7 +3,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<div class="topbar-search-shell">
+<div class="topbar-search-shell @(IsMobileSearchOpen ? "mobile-open" : null)">
     <button class="button subtle compact topbar-search-toggle"
             type="button"
             aria-expanded="@IsMobileSearchOpen"

@@ -38,6 +38,7 @@ public sealed class SpecTenWebApplicationFactory : WebApplicationFactory<Program
                 ["Scraping:UseFixtureAdapters"] = "true",
                 ["Scraping:PerDomainDelayMilliseconds"] = "0",
                 ["Coverage:Enabled"] = "true",
+                ["Coverage:OnDemandHydrationEnabled"] = "true",
                 ["CatalogSeed:Enabled"] = "false",
                 ["PublicApi:RateLimitPermitLimit"] = "1000",
                 ["PublicApi:RateLimitWindowSeconds"] = "60",

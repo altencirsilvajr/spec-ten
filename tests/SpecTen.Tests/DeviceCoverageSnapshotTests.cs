@@ -365,6 +365,55 @@ public sealed class DeviceCoverageSnapshotTests
     }
 
     [Fact]
+    public async Task SearchAsync_UsesDirectSearch_WhenSnapshotOnlyHasRelatedModel()
+    {
+        var workingDirectory = Directory.CreateTempSubdirectory("coverage-snapshot-tests");
+        try
+        {
+            var snapshotPath = Path.Combine(workingDirectory.FullName, "coverage-index.snapshot.json");
+            await File.WriteAllTextAsync(snapshotPath, BuildSnapshotJson(
+            [
+                new SnapshotEntry(
+                    "Xiaomi",
+                    "xiaomi",
+                    "Redmi 12",
+                    "redmi-12",
+                    "xiaomi",
+                    "redmi12",
+                    "xiaomiredmi12",
+                    "redmi12",
+                    40,
+                    "GSMArena",
+                    "https://www.gsmarena.com/xiaomi_redmi_12-12345.php"),
+            ]));
+
+            var responses = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["https://www.gsmarena.com/results.php3?sQuickSearch=yes&sName=Xiaomi 12"] = """
+                    <ul><li><a href=xiaomi_12-11728.php><strong>Xiaomi<br>12</strong></a></li></ul>
+                    """,
+            };
+
+            await using var harness = await CreateHarnessAsync(
+                workingDirectory.FullName,
+                snapshotPath,
+                responses);
+
+            var results = await harness.Service.SearchAsync("Xiaomi 12", null, 5, CancellationToken.None);
+
+            Assert.Equal("Xiaomi", results[0].Brand);
+            Assert.Equal("12", results[0].Name);
+            Assert.Contains(
+                harness.HttpClientFactory.RequestUris,
+                uri => uri.Contains("results.php3?sQuickSearch=yes", StringComparison.Ordinal));
+        }
+        finally
+        {
+            workingDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_DiscoversMakerPage_FromKnownPhone_WhenCompactDirectoryOmitsBrand()
     {
         var workingDirectory = Directory.CreateTempSubdirectory("coverage-snapshot-tests");

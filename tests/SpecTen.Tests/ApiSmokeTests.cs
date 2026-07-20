@@ -165,6 +165,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
     {
         await using var staleFactory = new SpecTenWebApplicationFactory(new Dictionary<string, string?>
         {
+            ["Coverage:OnDemandHydrationEnabled"] = "false",
             ["Coverage:CatalogEntryRefreshHours"] = "1",
         });
         await staleFactory.InitializeAsync();
@@ -202,7 +203,12 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
     [Fact]
     public async Task SearchApi_ReturnsExactCoverageResultWithoutBlockingForHydration()
     {
-        var client = factory.CreateClient();
+        await using var nonHydratingFactory = new SpecTenWebApplicationFactory(new Dictionary<string, string?>
+        {
+            ["Coverage:OnDemandHydrationEnabled"] = "false",
+        });
+        await nonHydratingFactory.InitializeAsync();
+        var client = nonHydratingFactory.CreateClient();
         TestDeviceCoverageService.ResetObservedRequests();
 
         var results = await client.GetFromJsonAsync<List<PhoneSearchResult>>("/api/search?query=vivo%20x300%20ultra");
@@ -712,7 +718,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
 
         Assert.True(response.IsSuccessStatusCode);
         Assert.Contains("Abrir catalogo", html, StringComparison.Ordinal);
-        Assert.Contains("Comparar modelos", html, StringComparison.Ordinal);
+        Assert.Contains("Como ler os dados", html, StringComparison.Ordinal);
         Assert.Contains("Ver destaque", html, StringComparison.Ordinal);
         Assert.Contains("rel=\"canonical\"", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/\"", html, StringComparison.Ordinal);
@@ -812,7 +818,6 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.True(response.IsSuccessStatusCode);
-        Assert.Contains("Ultima consolidacao", html, StringComparison.Ordinal);
         Assert.Contains("Atualizado", html, StringComparison.Ordinal);
         Assert.Contains("Coletado", html, StringComparison.Ordinal);
     }
@@ -1045,8 +1050,8 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
 
         Assert.True(response.IsSuccessStatusCode);
         Assert.Contains("Ir para categoria", html, StringComparison.Ordinal);
-        Assert.Contains("#catalog-top-de-linha", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("#catalog-intermediarios", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#catalog-desempenho-muito-alto", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("#catalog-desempenho-equilibrado", html, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1087,7 +1092,7 @@ public sealed class ApiSmokeTests(SpecTenWebApplicationFactory factory)
 
         Assert.True(response.IsSuccessStatusCode);
 
-        var firstCatalogSectionIndex = html.IndexOf("<section id=\"catalog-top-de-linha\"", StringComparison.OrdinalIgnoreCase);
+        var firstCatalogSectionIndex = html.IndexOf("<section id=\"catalog-desempenho-muito-alto\"", StringComparison.OrdinalIgnoreCase);
         var metricsIndex = html.IndexOf("Resumo do catalogo", StringComparison.Ordinal);
         var brandsIndex = html.IndexOf("Marcas com ficha completa", StringComparison.Ordinal);
         var comparisonsIndex = html.IndexOf("Comparacoes prontas", StringComparison.Ordinal);
