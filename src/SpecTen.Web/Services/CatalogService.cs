@@ -124,6 +124,14 @@ public sealed partial class CatalogService(
             var localResults = BuildSearchResults(phones, query, tier, brandSlug, sort, Math.Max(limit, 80));
             var coverageResults = await SearchCoverageFallbackAsync(query, tier, brandSlug, limit, localResults, cancellationToken);
 
+            if (await HydrateCoverageMatchesAsync(query, localResults, coverageResults, cancellationToken))
+            {
+                await using var refreshedDb = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                phones = await SearchQuery(refreshedDb).ToListAsync(cancellationToken);
+                localResults = BuildSearchResults(phones, query, tier, brandSlug, sort, Math.Max(limit, 80));
+                coverageResults = await SearchCoverageFallbackAsync(query, tier, brandSlug, limit, localResults, cancellationToken);
+            }
+
             return (IReadOnlyList<PhoneSearchResult>)MergeSearchResults(localResults, coverageResults, query, limit);
         }) ?? [];
     }
@@ -177,6 +185,14 @@ public sealed partial class CatalogService(
             var phones = await SearchQuery(db).ToListAsync(cancellationToken);
             var localResults = BuildSearchResults(phones, query, null, null, CatalogSortOption.Relevance, Math.Max(limit, 24));
             var coverageResults = await SearchCoverageFallbackAsync(query, null, null, limit, localResults, cancellationToken);
+
+            if (await HydrateCoverageMatchesAsync(query, localResults, coverageResults, cancellationToken))
+            {
+                await using var refreshedDb = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+                phones = await SearchQuery(refreshedDb).ToListAsync(cancellationToken);
+                localResults = BuildSearchResults(phones, query, null, null, CatalogSortOption.Relevance, Math.Max(limit, 24));
+                coverageResults = await SearchCoverageFallbackAsync(query, null, null, limit, localResults, cancellationToken);
+            }
 
             var results = MergeSearchResults(localResults, coverageResults, query, limit);
 
